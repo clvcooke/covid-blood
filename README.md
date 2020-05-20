@@ -14,3 +14,6 @@ PyCharm has a great *remote debugging* feature built into it's professional edit
 ## Contribution guidelines
 
 Don't push to master!
+
+### Code style
+Functions should use named arguments by default
