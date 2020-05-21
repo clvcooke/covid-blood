@@ -71,7 +71,7 @@ class ClassificationTrainer:
         else:
             amnt = self.num_val
             loader = self.val_loader
-        with tqdm(total=amnt) as pbar:
+        with tqdm(total=amnt*self.batch_size) as pbar:
             for i, data in enumerate(loader):
                 x, y, = data
                 if self.use_gpu:
