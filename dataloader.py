@@ -6,7 +6,7 @@ from sklearn import model_selection
 from pandas import read_excel
 import os
 import glob
-from skimage import io
+from PIL import Image
 from tqdm import tqdm
 
 # used to filter out large images (not of single cells)
@@ -37,7 +37,7 @@ class CustomDataset(torch.utils.data.Dataset):
         if torch.is_tensor(index):
             index = index.tolist()
         image_path = self.image_paths[index]
-        image = io.imread(image_path)
+        image = Image.open(image_path)
         label = self.image_labels[index]
         if self.data_transforms is not None:
             image = self.data_transforms(image)
@@ -104,7 +104,8 @@ def load_orders(orders, image_paths, label):
         for image_path in image_paths[order]:
             labels.append(label)
             orders.append(order)
-            files.append(os.path.basename(image_path))
+            files.append(image_path)
+        all_labels += labels
         all_orders += orders
         all_files += files
     return all_labels, all_orders, all_files
@@ -186,6 +187,6 @@ def load_all_patients(train_transforms=None, val_transforms=None, group_by_patie
                                         'orders': val_orders,
                                     })
     # TODO: should we pin memory?
-    train_loader = DataLoader(train_dataset, batch_size=batch_size)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True)
     return train_loader, val_loader
