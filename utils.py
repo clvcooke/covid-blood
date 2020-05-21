@@ -1,6 +1,42 @@
 from sklearn.metrics import roc_auc_score, roc_curve
 import matplotlib.pyplot as plt
 import numpy as np
+import os
+import torch
+
+
+class AverageMeter:
+    """
+    Computes and stores the average and
+    current value.
+    """
+
+    def __init__(self):
+        self.val = 0
+        self.avg = 0
+        self.sum = 0
+        self.count = 0
+        self.reset()
+
+    def reset(self):
+        self.val = 0
+        self.avg = 0
+        self.sum = 0
+        self.count = 0
+
+    def update(self, val, n=1):
+        self.val = val
+        self.sum += val * n
+        self.count += n
+        self.avg = self.sum / self.count
+
+
+def setup_torch(random_seed, use_gpu, gpu_number=0):
+    torch.manual_seed(random_seed)
+    torch.set_num_threads(1)
+    if use_gpu:
+        os.environ['CUDA_VISIBLE_DEVICES'] = gpu_number
+        torch.cuda.manual_seed(random_seed)
 
 
 def aggregate_scores(score_list, method='median'):
