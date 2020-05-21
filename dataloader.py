@@ -6,7 +6,7 @@ from sklearn import model_selection
 from pandas import read_excel
 import os
 import glob
-from PIL import Image
+from skimage import io
 from tqdm import tqdm
 
 # used to filter out large images (not of single cells)
@@ -16,7 +16,7 @@ IMAGE_SIZE_CUTOFF_LOWER = 100
 
 
 class CustomDataset(torch.utils.data.Dataset):
-    def __init__(self, data_x, data_y, data_transforms=None, metadata=None):
+    def __init__(self, image_paths, image_labels, data_transforms=None, metadata=None):
         """
 
         :param data_x: input data to network
@@ -24,18 +24,21 @@ class CustomDataset(torch.utils.data.Dataset):
         :param data_transforms: image transforms to be applied to images
         :param metadata: any extra data that should be stored with the images for convenience
         """
-        assert len(data_x) == len(data_y), 'length mismatch between x and y'
-        self.data_x = data_x
-        self.data_y = data_y
+        assert len(image_paths) == len(image_labels), 'length mismatch between x and y'
+        self.image_paths = image_paths
+        self.image_labels = image_labels
         self.metadata = metadata
         self.data_transforms = data_transforms
 
     def __len__(self):
-        return len(self.data_y)
+        return len(self.image_labels)
 
     def __getitem__(self, index):
-        image = self.data_x[index]
-        label = self.data_y[index]
+        if torch.is_tensor(index):
+            index = index.tolist()
+        image_path = self.image_paths[index]
+        image = io.imread(image_path)
+        label = self.image_labels[index]
         if self.data_transforms is not None:
             image = self.data_transforms(image)
         return image, label
@@ -91,26 +94,20 @@ def get_patient_orders(exclude_orders=None):
 
 
 def load_orders(orders, image_paths, label):
-    all_images = []
     all_labels = []
     all_orders = []
     all_files = []
     for order in tqdm(orders):
-        images = []
         labels = []
         orders = []
         files = []
         for image_path in image_paths[order]:
-            image = Image.open(image_path).load()
-            images.append(image)
             labels.append(label)
             orders.append(order)
             files.append(os.path.basename(image_path))
-        all_images += images
-        all_labels += labels
         all_orders += orders
         all_files += files
-    return all_images, all_labels, all_orders, all_files
+    return all_labels, all_orders, all_files
 
 
 def load_pbc_data(train_transforms=None, val_transforms=None, batch_size=8):
@@ -133,8 +130,10 @@ def load_pbc_data(train_transforms=None, val_transforms=None, batch_size=8):
     # Create training and validation datasets
     image_datasets = {x: ImageFolder(os.path.join(data_dir, x), data_transforms[x]) for x in ['train', 'val']}
     # Create training and validation dataloaders
-    train_loader, val_loader = [torch.utils.data.DataLoader(image_datasets[x], batch_size=batch_size, shuffle=True) for x in ['train', 'val']]
+    train_loader, val_loader = [torch.utils.data.DataLoader(image_datasets[x], batch_size=batch_size, shuffle=True) for
+                                x in ['train', 'val']]
     return train_loader, val_loader
+
 
 def load_all_patients(train_transforms=None, val_transforms=None, group_by_patient=False, batch_size=8, fold_number=0,
                       fold_seed=0,
@@ -161,34 +160,30 @@ def load_all_patients(train_transforms=None, val_transforms=None, group_by_patie
         raise RuntimeError("Needs to be implemented still")
     else:
         # first we load the data into memory from disk
-        train_pos_images, train_pos_labels, train_pos_orders, train_pos_files = load_orders(train_positive_orders,
-                                                                                            positive_image_paths, 1)
-        train_neg_images, train_neg_labels, train_neg_orders, train_neg_files = load_orders(train_negative_orders,
-                                                                                            negative_image_paths, 0)
-        train_images = train_pos_images + train_neg_images
+        train_pos_labels, train_pos_orders, train_pos_files = load_orders(train_positive_orders,
+                                                                          positive_image_paths, 1)
+        train_neg_labels, train_neg_orders, train_neg_files = load_orders(train_negative_orders,
+                                                                          negative_image_paths, 0)
         train_labels = train_pos_labels + train_neg_labels
         train_orders = train_pos_orders + train_neg_orders
         train_files = train_pos_files + train_neg_files
 
-        val_pos_images, val_pos_labels, val_pos_orders, val_pos_files = load_orders(val_positive_orders,
-                                                                                    positive_image_paths, 1)
-        val_neg_images, val_neg_labels, val_neg_orders, val_neg_files = load_orders(val_negative_orders,
-                                                                                    negative_image_paths, 0)
-        val_images = val_pos_images + val_neg_images
+        val_pos_labels, val_pos_orders, val_pos_files = load_orders(val_positive_orders,
+                                                                    positive_image_paths, 1)
+        val_neg_labels, val_neg_orders, val_neg_files = load_orders(val_negative_orders,
+                                                                    negative_image_paths, 0)
         val_labels = val_pos_labels + val_neg_labels
         val_orders = val_pos_orders + val_neg_orders
         val_files = val_pos_files + val_neg_files
 
         # now we want to make a dataset out of the images/labels
-        train_dataset = CustomDataset(train_images, train_labels, data_transforms=train_transforms,
+        train_dataset = CustomDataset(train_files, train_labels, data_transforms=train_transforms,
                                       metadata={
                                           'orders': train_orders,
-                                          'filenames': train_files
                                       })
-        val_dataset = CustomDataset(val_images, val_labels, data_transforms=val_transforms,
+        val_dataset = CustomDataset(val_files, val_labels, data_transforms=val_transforms,
                                     metadata={
                                         'orders': val_orders,
-                                        'filenames': val_files
                                     })
     # TODO: should we pin memory?
     train_loader = DataLoader(train_dataset, batch_size=batch_size)
