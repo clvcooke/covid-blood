@@ -2,7 +2,7 @@ from config import get_config
 from torchvision import transforms
 from utils import setup_torch
 import wandb
-from dataloader import load_all_patients
+from dataloader import load_all_patients, load_pbc_data
 from models.imagenet import get_model
 from trainer import ClassificationTrainer
 from torch import optim
@@ -17,7 +17,6 @@ def main():
     """
     config, unparsed = get_config()
     setup_torch(config.random_seed, config.use_gpu, config.gpu_number)
-    wandb.config['task'] = 'covid-classification'
     wandb.config.update(config)
     image_size = 224
     # TODO: generate this in a function?
@@ -37,11 +36,15 @@ def main():
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ]),
     }
-
-    train_loader, val_loader = load_all_patients(train_transforms=data_transforms['train'],
+    if config.task == 'covid-class':
+        train_loader, val_loader = load_all_patients(train_transforms=data_transforms['train'],
+                                                     val_transforms=data_transforms['val'],
+                                                     batch_size=config.batch_size,
+                                                     fold_number=config.fold_number)
+    elif config.task == 'wbc-class':
+        train_loader, val_loader = load_pbc_data(train_transforms=data_transforms['train'],
                                                  val_transforms=data_transforms['val'],
-                                                 batch_size=config.batch_size,
-                                                 fold_number=config.fold_number)
+                                                 batch_size=config.batch_size)
 
     model = get_model(model_name=config.model_name, num_classes=2)
     optimizer = optim.AdamW(model.parameters(), lr=1e-3)

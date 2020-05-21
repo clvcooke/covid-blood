@@ -1,5 +1,6 @@
 import torch
 from torch.utils.data import DataLoader
+from torchvision.datasets import ImageFolder
 import numpy as np
 from sklearn import model_selection
 from pandas import read_excel
@@ -108,6 +109,29 @@ def load_orders(orders, image_paths, label):
         all_files += files
     return all_images, all_labels, all_orders, all_files
 
+
+def load_pbc_data(train_transforms=None, val_transforms=None, batch_size=8):
+    """
+
+    :param train_transforms:
+    :param val_transforms:
+    :param batch_size:
+    :param fold_number:
+    :param fold_seed:
+    :param fold_count:
+    :return:
+    """
+    data_dir = '/hddraid5/data/colin/cell_classification/data'
+    data_transforms = {
+        'train': train_transforms,
+        'val': val_transforms
+    }
+    # luckily torchvision has a nice class for this scenario
+    # Create training and validation datasets
+    image_datasets = {x: ImageFolder(os.path.join(data_dir, x), data_transforms[x]) for x in ['train', 'val']}
+    # Create training and validation dataloaders
+    train_loader, val_loader = [torch.utils.data.DataLoader(image_datasets[x], batch_size=batch_size, shuffle=True) for x in ['train', 'val']]
+    return train_loader, val_loader
 
 def load_all_patients(train_transforms=None, val_transforms=None, group_by_patient=False, batch_size=8, fold_number=0,
                       fold_seed=0,

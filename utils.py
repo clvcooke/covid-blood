@@ -70,3 +70,14 @@ def plot_roc_curve(ground_truth, scores, aggregation_method='mean'):
     axs.set_xlabel("False Positive Rate")
     axs.set_ylabel("True Positive Rate")
     fig.show()
+
+
+def save_model(model, model_name, model_dir='/hddraid5/data/colin/models'):
+    os.makedirs(model_dir, exist_ok=True)
+    torch.save(model.state_dict, os.path.join(model_dir, model_name))
+
+
+def load_model(model, model_path):
+    model_state_dict = torch.load(model_path)
+    model.load_state_dict(model_state_dict)
+    return model

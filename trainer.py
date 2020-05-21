@@ -3,7 +3,7 @@ import numpy as np
 import wandb
 from tqdm import tqdm
 import torch
-
+import os
 
 class MILTrainer:
     def __init__(self):
@@ -27,6 +27,9 @@ class ClassificationTrainer:
         self.lr = self.optimizer.param_groups[0]['lr']
         self.patience = patience
         self.criterion = torch.nn.CrossEntropyLoss()
+        # hack to get the wandb unique ID
+        self.run_name = os.path.basename(wandb.run.path)
+
 
     def train(self):
         print(f"\n[*] Train on {self.num_train} samples, validate on {self.num_val} samples")
