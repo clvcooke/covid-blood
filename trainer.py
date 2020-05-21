@@ -5,6 +5,7 @@ from tqdm import tqdm
 import torch
 import os
 
+
 class MILTrainer:
     def __init__(self):
         pass
@@ -29,7 +30,6 @@ class ClassificationTrainer:
         self.criterion = torch.nn.CrossEntropyLoss()
         # hack to get the wandb unique ID
         self.run_name = os.path.basename(wandb.run.path)
-
 
     def train(self):
         print(f"\n[*] Train on {self.num_train} samples, validate on {self.num_val} samples")
