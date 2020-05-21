@@ -49,6 +49,7 @@ class ClassificationTrainer:
                 epochs_since_best = 0
             else:
                 epochs_since_best += 1
+            print(msg)
             wandb.log({
                 'train_loss': train_loss,
                 'train_acc': train_acc,
@@ -80,7 +81,7 @@ class ClassificationTrainer:
                     self.optimizer.zero_grad()
                 loss = self.criterion(output, y)
                 _, preds = torch.max(output, 1)
-                acc = torch.sum(preds == y.data) / len(y)
+                acc = torch.sum(preds == y.data).float() / len(y)
                 if training:
                     loss.backward()
                     self.optimizer.step()
