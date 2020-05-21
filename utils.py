@@ -74,7 +74,9 @@ def plot_roc_curve(ground_truth, scores, aggregation_method='mean'):
 
 def save_model(model, model_name, model_dir='/hddraid5/data/colin/models'):
     os.makedirs(model_dir, exist_ok=True)
-    torch.save(model.state_dict, os.path.join(model_dir, model_name))
+    model_path = os.path.join(model_dir, model_name + '.pth')
+    torch.save(model.state_dict, model_path)
+    print(f"Saved model to {model_path}")
 
 
 def load_model(model, model_path):
