@@ -54,7 +54,7 @@ def main():
         model.cuda()
     optimizer = optim.AdamW(model.parameters(), lr=1e-3)
     trainer = ClassificationTrainer(model=model, optimizer=optimizer, train_loader=train_loader, val_loader=val_loader,
-                                    batch_size=config.batch_size, epochs=config.epochs, patience=100)
+                                    batch_size=config.batch_size, epochs=config.epochs, patience=7)
     trainer.train()
 
 

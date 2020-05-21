@@ -66,7 +66,7 @@ def get_patient_orders(exclude_orders=None):
         test_results = test_results + table_test_results
     positive_images = {}
     negative_images = {}
-    for order, test_result in zip(orders, test_results):
+    for order, test_result in tqdm(zip(orders, test_results), desc='reading excel files'):
         try:
             label = 'positive' in test_result.lower()
             np.int(order)
@@ -82,8 +82,8 @@ def get_patient_orders(exclude_orders=None):
         else:
             negative_images[str(order)] = image_paths
     # sort by order number, python 3.7 has dictionaries ordered by default
-    negative_images = dict(sorted(negative_images))
-    positive_images = dict(sorted(positive_images))
+    negative_images = dict(sorted(negative_images.items()))
+    positive_images = dict(sorted(positive_images.items()))
     return negative_images, positive_images
 
 
