@@ -48,7 +48,7 @@ def get_fold(data, fold_seed=0, fold_index=0, fold_count=6):
     """
     assert fold_index < fold_count
     folder = model_selection.KFold(n_splits=fold_count, shuffle=True, random_state=fold_seed)
-    split = folder.split(X=data)[fold_index]
+    split = list(folder.split(X=data))[fold_index]
     data = np.array(data)
     return data[split[0]], data[split[1]]
 
@@ -66,7 +66,7 @@ def get_patient_orders(exclude_orders=None):
         test_results = test_results + table_test_results
     positive_images = {}
     negative_images = {}
-    for order, test_result in tqdm(zip(orders, test_results), desc='reading excel files'):
+    for order, test_result in tqdm(zip(orders, test_results), desc='reading excel files', total=len(orders)):
         try:
             label = 'positive' in test_result.lower()
             np.int(order)
