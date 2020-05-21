@@ -98,7 +98,7 @@ def load_orders(orders, image_paths, label):
         orders = []
         files = []
         for image_path in image_paths[order]:
-            image = Image.open(image_path)
+            image = Image.open(image_path).load()
             images.append(image)
             labels.append(label)
             orders.append(order)
