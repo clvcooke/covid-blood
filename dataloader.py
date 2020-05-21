@@ -30,6 +30,9 @@ class CustomDataset(torch.utils.data.Dataset):
         self.metadata = metadata
         self.data_transforms = data_transforms
 
+    def __len__(self):
+        return len(self.data_y)
+
     def __getitem__(self, index):
         image = self.data_x[index]
         label = self.data_y[index]
