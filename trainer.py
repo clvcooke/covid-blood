@@ -1,4 +1,4 @@
-from utils import AverageMeter
+from utils import AverageMeter, save_model
 import numpy as np
 import wandb
 from tqdm import tqdm
@@ -45,7 +45,7 @@ class ClassificationTrainer:
                 best_val_loss = val_loss
                 msg += '[*]'
                 # TODO: implement model saving
-                # save_model
+                save_model(self.model, self.run_name)
                 epochs_since_best = 0
             else:
                 epochs_since_best += 1
@@ -68,9 +68,11 @@ class ClassificationTrainer:
         if training:
             amnt = self.num_train
             loader = self.train_loader
+            self.model.train()
         else:
             amnt = self.num_val
             loader = self.val_loader
+            self.model.eval()
         with tqdm(total=amnt*self.batch_size) as pbar:
             for i, data in enumerate(loader):
                 x, y, = data

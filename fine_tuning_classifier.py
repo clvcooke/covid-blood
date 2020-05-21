@@ -47,6 +47,8 @@ def main():
                                                  val_transforms=data_transforms['val'],
                                                  batch_size=config.batch_size)
         num_classes = 9
+    else:
+        raise RuntimeError("Task not supported")
     model = get_model(model_name=config.model_name, num_classes=num_classes)
     if config.use_gpu:
         model.cuda()
