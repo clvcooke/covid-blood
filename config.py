@@ -34,6 +34,8 @@ train_arg.add_argument('--fold_number', type=int, default=0,
                        help='Which fold to use for validation')
 train_arg.add_argument('--model_name', type=str, default='densenet',
                        help='which architecture to use')
+train_arg.add_argument('--pretrain', type=str2bool, default=True,
+                       help='pretraining True or False')
 
 misc_arg = add_argument_group('Misc.')
 misc_arg.add_argument('--use_gpu', type=str2bool, default=True,
