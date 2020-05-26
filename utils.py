@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import torch
+import pwd
 
 
 class AverageMeter:
@@ -72,8 +73,10 @@ def plot_roc_curve(ground_truth, scores, aggregation_method='mean'):
     fig.show()
 
 
-def save_model(model, model_name, model_dir='/hddraid5/data/vinayak/models'):
+def save_model(model, model_name, model_dir=None):
     os.makedirs(model_dir, exist_ok=True)
+    if model_dir is None:
+        model_dir = f"/hddraid5/data/{pwd.getpwuid(os.getuid()).pw_name}/models"
     model_path = os.path.join(model_dir, model_name + '.pth')
     torch.save(model.state_dict, model_path)
     print(f"Saved model to {model_path}")
