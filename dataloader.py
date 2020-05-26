@@ -16,7 +16,7 @@ IMAGE_SIZE_CUTOFF_LOWER = 100
 
 
 class CustomDataset(torch.utils.data.Dataset):
-    def __init__(self, image_paths, image_labels, data_transforms=None, metadata=None):
+    def __init__(self, image_paths, image_labels, data_transforms=None, metadata=None, extract_filenames=False):
         """
 
         :param data_x: input data to network
@@ -29,6 +29,7 @@ class CustomDataset(torch.utils.data.Dataset):
         self.image_labels = image_labels
         self.metadata = metadata
         self.data_transforms = data_transforms
+        self.extract_filenames = extract_filenames
 
     def __len__(self):
         return len(self.image_labels)
@@ -41,7 +42,10 @@ class CustomDataset(torch.utils.data.Dataset):
         label = self.image_labels[index]
         if self.data_transforms is not None:
             image = self.data_transforms(image)
-        return image, label
+        if self.extract_filenames:
+            return (image, image_path), label
+        else:
+            return image, label
 
 
 def get_fold(data, fold_seed=0, fold_index=0, fold_count=6):
@@ -138,7 +142,8 @@ def load_pbc_data(train_transforms=None, val_transforms=None, batch_size=8):
 
 def load_all_patients(train_transforms=None, val_transforms=None, group_by_patient=False, batch_size=8, fold_number=0,
                       fold_seed=0,
-                      fold_count=6):
+                      fold_count=6,
+                      extract_filenames=False):
     """
     Loads all the data from the Duke COVID +/- dataset
     :param group_by_patient: return one entry per patient (bag style), default false
@@ -181,11 +186,12 @@ def load_all_patients(train_transforms=None, val_transforms=None, group_by_patie
         train_dataset = CustomDataset(train_files, train_labels, data_transforms=train_transforms,
                                       metadata={
                                           'orders': train_orders,
-                                      })
+                                      },
+                                      extract_filenames=extract_filenames)
         val_dataset = CustomDataset(val_files, val_labels, data_transforms=val_transforms,
                                     metadata={
                                         'orders': val_orders,
-                                    })
+                                    },extract_filenames=extract_filenames)
     # TODO: should we pin memory?
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True)
