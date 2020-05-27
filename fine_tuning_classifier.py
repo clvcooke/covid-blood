@@ -49,7 +49,7 @@ def main():
         num_classes = 9
     else:
         raise RuntimeError("Task not supported")
-    model = get_model(model_name=config.model_name, num_classes=num_classes)
+    model = get_model(model_name=config.model_name, num_classes=num_classes, use_pretrained=config.pretrained_model)
     if config.use_gpu:
         model.cuda()
     optimizer = optim.AdamW(model.parameters(), lr=1e-3)

@@ -2,13 +2,15 @@ from torchvision import models
 from torch import nn
 
 
+
+
 def set_parameter_requires_grad(model, feature_extracting):
     if feature_extracting:
         for param in model.parameters():
             param.requires_grad = False
 
 
-def get_model(model_name, num_classes, feature_extract=True, use_pretrained=True):
+def get_model(model_name, num_classes, use_pretrained,  feature_extract=True):
     if model_name == "resnet":
         """ Resnet18
         """
