@@ -78,7 +78,7 @@ def save_model(model, model_name, model_dir=None):
         model_dir = f"/hddraid5/data/{pwd.getpwuid(os.getuid()).pw_name}/models"
     model_path = os.path.join(model_dir, model_name + '.pth')
     os.makedirs(model_dir, exist_ok=True)
-    torch.save(model.state_dict, model_path)
+    torch.save(model.state_dict(), model_path)
     print(f"Saved model to {model_path}")
 
 
