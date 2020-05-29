@@ -14,10 +14,10 @@ def infer_loader(model, loader):
     inference_results = {}
     for (images, filenames), _ in tqdm(loader):
         # assume cuda
-        images.cuda()
+        images = images.cuda()
         results = model(images)
-        _, preds = torch.max(results)
-        preds = preds.data
+        _, preds = torch.max(results, 1)
+        preds = preds.tolist()
         for filename, pred in zip(filenames, preds):
             inference_results[filename] = pred
     return inference_results
@@ -46,7 +46,7 @@ def predict(model_name, model_path, output_file):
                                                  val_transforms=transform,
                                                  batch_size=batch_size,
                                                  extract_filenames=True)
-    num_classes = 2
+    num_classes = 9
     model = get_model(model_name=model_name, num_classes=num_classes)
     load_model(model, model_path)
     model.cuda()
@@ -62,7 +62,7 @@ def predict(model_name, model_path, output_file):
 
 if __name__ == "__main__":
     username = pwd.getpwuid(os.getuid()).pw_name
-    model_id = '1zv5yud2'
+    model_id = '3ml20ia2'
     model_path = f"/hddraid5/data/{username}/models/{model_id}.pth"
     model_name = 'densenet'
     output_file = '/home/colin/testing/wbc_test.json'
