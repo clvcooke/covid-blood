@@ -36,11 +36,13 @@ def main():
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ]),
     }
+
     if config.task == 'covid-class':
         train_loader, val_loader = load_all_patients(train_transforms=data_transforms['train'],
                                                      val_transforms=data_transforms['val'],
                                                      batch_size=config.batch_size,
-                                                     fold_number=config.fold_number)
+                                                     fold_number=config.fold_number,
+                                                     exclusion=config.exclusion)
         num_classes = 2
     elif config.task == 'wbc-class':
         train_loader, val_loader = load_pbc_data(train_transforms=data_transforms['train'],

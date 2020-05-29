@@ -1,3 +1,4 @@
+import json
 import torch
 from torch.utils.data import DataLoader
 from torchvision.datasets import ImageFolder
@@ -97,7 +98,7 @@ def get_patient_orders(exclude_orders=None):
     return negative_images, positive_images
 
 
-def load_orders(orders, image_paths, label):
+def load_orders(orders, image_paths, label, exclusion=None):
     all_labels = []
     all_orders = []
     all_files = []
@@ -106,6 +107,9 @@ def load_orders(orders, image_paths, label):
         orders = []
         files = []
         for image_path in image_paths[order]:
+            # exclude all files in the exclusion set
+            if exclusion is not None and os.path.basename(image_path) in exclusion:
+                continue
             labels.append(label)
             orders.append(order)
             files.append(image_path)
@@ -143,7 +147,8 @@ def load_pbc_data(train_transforms=None, val_transforms=None, batch_size=8):
 def load_all_patients(train_transforms=None, val_transforms=None, group_by_patient=False, batch_size=8, fold_number=0,
                       fold_seed=0,
                       fold_count=6,
-                      extract_filenames=False):
+                      extract_filenames=False,
+                      exclusion=None):
     """
     Loads all the data from the Duke COVID +/- dataset
     :param group_by_patient: return one entry per patient (bag style), default false
@@ -165,19 +170,30 @@ def load_all_patients(train_transforms=None, val_transforms=None, group_by_patie
     if group_by_patient:
         raise RuntimeError("Needs to be implemented still")
     else:
+        if exclusion is not None:
+            with open(exclusion) as fp:
+                # set to go fast
+                exclusion_set = set(json.load(fp))
+        else:
+            # empty set as default
+            exclusion_set = set()
         # first we load the data into memory from disk
         train_pos_labels, train_pos_orders, train_pos_files = load_orders(train_positive_orders,
-                                                                          positive_image_paths, 1)
+                                                                          positive_image_paths, 1,
+                                                                          exclusion=exclusion_set)
         train_neg_labels, train_neg_orders, train_neg_files = load_orders(train_negative_orders,
-                                                                          negative_image_paths, 0)
+                                                                          negative_image_paths, 0,
+                                                                          exclusion=exclusion_set)
         train_labels = train_pos_labels + train_neg_labels
         train_orders = train_pos_orders + train_neg_orders
         train_files = train_pos_files + train_neg_files
 
         val_pos_labels, val_pos_orders, val_pos_files = load_orders(val_positive_orders,
-                                                                    positive_image_paths, 1)
+                                                                    positive_image_paths, 1,
+                                                                    exclusion=exclusion_set)
         val_neg_labels, val_neg_orders, val_neg_files = load_orders(val_negative_orders,
-                                                                    negative_image_paths, 0)
+                                                                    negative_image_paths, 0,
+                                                                    exclusion=exclusion_set)
         val_labels = val_pos_labels + val_neg_labels
         val_orders = val_pos_orders + val_neg_orders
         val_files = val_pos_files + val_neg_files

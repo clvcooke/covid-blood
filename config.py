@@ -18,6 +18,8 @@ def add_argument_group(name):
 data_arg = add_argument_group('Data Params')
 data_arg.add_argument('--batch_size', type=int, default=4,
                       help='# of images in each batch of data')
+data_arg.add_argument('--exclusion', type=str, default=None,
+                      help='Path of file containing list of files to exclude')
 
 train_arg = add_argument_group('Training Params')
 train_arg.add_argument('--epochs', type=int, default=50,
