@@ -47,7 +47,7 @@ def predict(model_name, model_path, output_file):
                                                  batch_size=batch_size,
                                                  extract_filenames=True)
     num_classes = 9
-    model = get_model(model_name=model_name, num_classes=num_classes)
+    model = get_model(model_name=model_name, num_outputs=num_classes)
     load_model(model, model_path)
     model.cuda()
     # now run prediction step

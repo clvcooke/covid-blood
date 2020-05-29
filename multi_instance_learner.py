@@ -4,22 +4,27 @@ from utils import setup_torch
 import wandb
 from dataloader import load_all_patients, load_pbc_data
 from models.imagenet import get_model
+from models.multi_instance import AttentionModel
 from trainer import ClassificationTrainer
 from torch import optim
+import warnings
 
 wandb.init("covid")
 
 
 def main():
     """
-    Train a classifier to detect covid positive vs. negative by fine tuning a pre-trained CNN
+    Train a multi-instance classifier to detect covid positive vs. negative
     :return:
     """
     config, unparsed = get_config()
+    # enforce batch_size of 1
+    if config.batch_size != 1:
+        warnings.warn("Batch size must be one for multi-instance learning, changing batch_size to 1")
+        config.batch_size = 1
     setup_torch(config.random_seed, config.use_gpu, config.gpu_number)
     wandb.config.update(config)
     image_size = 224
-    # TODO: generate this in a function?
     data_transforms = {
         'train': transforms.Compose([
             transforms.CenterCrop(image_size),
@@ -36,25 +41,22 @@ def main():
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ]),
     }
-
-    if config.task == 'covid-class':
-        train_loader, val_loader = load_all_patients(train_transforms=data_transforms['train'],
-                                                     val_transforms=data_transforms['val'],
-                                                     batch_size=config.batch_size,
-                                                     fold_number=config.fold_number,
-                                                     exclusion=config.exclusion)
-        num_classes = 2
-    elif config.task == 'wbc-class':
-        train_loader, val_loader = load_pbc_data(train_transforms=data_transforms['train'],
-                                                 val_transforms=data_transforms['val'],
-                                                 batch_size=config.batch_size)
-        num_classes = 9
-    else:
+    if config.task != 'covid-class':
         raise RuntimeError("Task not supported")
-    model = get_model(model_name=config.model_name, num_outputs=num_classes, use_pretrained=config.pretrained_model)
+    train_loader, val_loader = load_all_patients(train_transforms=data_transforms['train'],
+                                                 val_transforms=data_transforms['val'],
+                                                 batch_size=config.batch_size,
+                                                 fold_number=config.fold_number,
+                                                 exclusion=config.exclusion,
+                                                 group_by_patient=True)
+    model = AttentionModel(
+        backbone_name=config.model_name,
+        num_classes=2
+    )
     if config.use_gpu:
         model.cuda()
-    optimizer = optim.AdamW(model.parameters(), lr=1e-3)
+
+    optimizer = optim.Adam(model.parameters(), lr=0.001, betas=(0.9, 0.999))
     trainer = ClassificationTrainer(model=model, optimizer=optimizer, train_loader=train_loader, val_loader=val_loader,
                                     batch_size=config.batch_size, epochs=config.epochs, patience=7)
     trainer.train()
