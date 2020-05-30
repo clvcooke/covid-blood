@@ -4,7 +4,7 @@ from utils import setup_torch
 import wandb
 from dataloader import load_all_patients, load_pbc_data
 from models.imagenet import get_model
-from models.multi_instance import AttentionModel
+from models.multi_instance import AttentionModel, GatedAttentionModel
 from trainer import ClassificationTrainer
 from torch import optim
 import warnings
@@ -49,7 +49,7 @@ def main():
                                                  fold_number=config.fold_number,
                                                  exclusion=config.exclusion,
                                                  group_by_patient=True)
-    model = AttentionModel(
+    model = GatedAttentionModel(
         backbone_name=config.model_name,
         num_classes=2
     )

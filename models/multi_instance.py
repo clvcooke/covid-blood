@@ -25,7 +25,7 @@ class GatedAttentionModel(nn.Module):
             nn.Sigmoid()
         )
 
-        self.attention_weights = nn.Linear(self.instance_hidden_size, self.hidden_size)
+        self.attention_weights = nn.Linear(self.hidden_size, 1)
 
         self.classifier = nn.Sequential(
             nn.Linear(self.instance_hidden_size, self.num_classes)
