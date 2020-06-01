@@ -6,11 +6,6 @@ import torch
 import os
 
 
-class MILTrainer:
-    def __init__(self):
-        pass
-
-
 class ClassificationTrainer:
 
     def __init__(self, model, optimizer, train_loader, val_loader, batch_size, epochs, patience=10):
@@ -73,7 +68,7 @@ class ClassificationTrainer:
             amnt = self.num_val
             loader = self.val_loader
             self.model.eval()
-        with tqdm(total=amnt*self.batch_size) as pbar:
+        with tqdm(total=amnt * self.batch_size) as pbar:
             for i, data in enumerate(loader):
                 x, y, = data
                 if self.use_gpu:

@@ -16,8 +16,52 @@ IMAGE_SIZE_CUTOFF_UPPER = 800000
 IMAGE_SIZE_CUTOFF_LOWER = 100
 
 
-class CustomDataset(torch.utils.data.Dataset):
-    def __init__(self, image_paths, image_labels, data_transforms=None, metadata=None, extract_filenames=False):
+class ImageCache:
+    def __init__(self, cache_amnt=-1):
+        self.cached = {}
+
+    def get(self, path):
+        if path not in self.cached:
+            self.cached[path] = Image.open(path).copy()
+        else:
+            return self.cached[path]
+        return self.cached[path]
+
+
+class BagDataset(torch.utils.data.Dataset):
+    def __init__(self, bags, data_transforms=None, metadata=None, cache_images=True):
+        """
+
+        :param bags: list of dicts containing paths/labels/orders
+        :param data_transforms: image transforms applied to images
+        :param metadata: any extra data the should be stored with the dataset for convenience
+        """
+        self.bags = bags
+        self.metadata = metadata
+        self.data_transforms = data_transforms
+        self.cache_images = cache_images
+        if self.cache_images:
+            self.image_cache = ImageCache()
+
+    def __len__(self):
+        return len(self.bags)
+
+    def __getitem__(self, index):
+        if torch.is_tensor(index):
+            index = index.tolist()
+        image_paths = self.bags[index]['files']
+        label = self.bags[index]['label']
+        if self.cache_images:
+            images = [self.image_cache.get(image_path) for image_path in image_paths]
+        else:
+            images = [Image.open(image_path) for image_path in image_paths]
+        transformed_images = torch.stack([self.data_transforms(image) for image in images])
+        return transformed_images, label
+
+
+class SingleCellDataset(torch.utils.data.Dataset):
+    def __init__(self, image_paths, image_labels, data_transforms=None, metadata=None, extract_filenames=False,
+                 cache_images=True):
         """
 
         :param data_x: input data to network
@@ -31,6 +75,9 @@ class CustomDataset(torch.utils.data.Dataset):
         self.metadata = metadata
         self.data_transforms = data_transforms
         self.extract_filenames = extract_filenames
+        self.cache_images = cache_images
+        if cache_images:
+            self.image_cache = ImageCache()
 
     def __len__(self):
         return len(self.image_labels)
@@ -39,7 +86,10 @@ class CustomDataset(torch.utils.data.Dataset):
         if torch.is_tensor(index):
             index = index.tolist()
         image_path = self.image_paths[index]
-        image = Image.open(image_path)
+        if self.cache_images:
+            image = self.image_cache.get(image_path)
+        else:
+            image = Image.open(image_path)
         label = self.image_labels[index]
         if self.data_transforms is not None:
             image = self.data_transforms(image)
@@ -98,6 +148,26 @@ def get_patient_orders(exclude_orders=None):
     return negative_images, positive_images
 
 
+def load_orders_into_bags(orders, image_paths, label, exclusion=None):
+    bags = []
+    for order in tqdm(orders):
+
+        if exclusion is None:
+            files = image_paths[order]
+        else:
+            files = [image_path for image_path in image_paths[order] if os.path.basename(image_path) not in exclusion]
+        if len(files) == 0:
+            print(f"Order {order} has zero files")
+            continue
+        bag = {
+            "order": order,
+            "label": label,
+            "files": files
+        }
+        bags.append(bag)
+    return bags
+
+
 def load_orders(orders, image_paths, label, exclusion=None):
     all_labels = []
     all_orders = []
@@ -125,9 +195,6 @@ def load_pbc_data(train_transforms=None, val_transforms=None, batch_size=8):
     :param train_transforms:
     :param val_transforms:
     :param batch_size:
-    :param fold_number:
-    :param fold_seed:
-    :param fold_count:
     :return:
     """
     data_dir = '/hddraid5/data/colin/cell_classification/data'
@@ -167,16 +234,32 @@ def load_all_patients(train_transforms=None, val_transforms=None, group_by_patie
                                                           fold_count=fold_count)
     train_negative_orders, val_negative_orders = get_fold(negative_orders, fold_index=fold_number, fold_seed=fold_seed,
                                                           fold_count=fold_count)
-    if group_by_patient:
-        raise RuntimeError("Needs to be implemented still")
+    if exclusion is not None:
+        with open(exclusion) as fp:
+            # set to go fast
+            exclusion_set = set(json.load(fp))
     else:
-        if exclusion is not None:
-            with open(exclusion) as fp:
-                # set to go fast
-                exclusion_set = set(json.load(fp))
-        else:
-            # empty set as default
-            exclusion_set = set()
+        # empty set as default
+        exclusion_set = set()
+    if group_by_patient:
+        train_pos_bags = load_orders_into_bags(train_positive_orders,
+                                               positive_image_paths, 1,
+                                               exclusion=exclusion_set)
+        train_neg_bags = load_orders_into_bags(train_negative_orders,
+                                               negative_image_paths, 0,
+                                               exclusion=exclusion_set)
+        train_bags = train_pos_bags + train_neg_bags
+
+        val_pos_bags = load_orders_into_bags(val_positive_orders,
+                                             positive_image_paths, 1,
+                                             exclusion=exclusion_set)
+        val_neg_bags = load_orders_into_bags(val_negative_orders,
+                                             negative_image_paths, 0,
+                                             exclusion=exclusion_set)
+        val_bags = val_pos_bags + val_neg_bags
+        train_dataset = BagDataset(train_bags, data_transforms=train_transforms)
+        val_dataset = BagDataset(val_bags, data_transforms=val_transforms)
+    else:
         # first we load the data into memory from disk
         train_pos_labels, train_pos_orders, train_pos_files = load_orders(train_positive_orders,
                                                                           positive_image_paths, 1,
@@ -199,15 +282,15 @@ def load_all_patients(train_transforms=None, val_transforms=None, group_by_patie
         val_files = val_pos_files + val_neg_files
 
         # now we want to make a dataset out of the images/labels
-        train_dataset = CustomDataset(train_files, train_labels, data_transforms=train_transforms,
-                                      metadata={
-                                          'orders': train_orders,
-                                      },
-                                      extract_filenames=extract_filenames)
-        val_dataset = CustomDataset(val_files, val_labels, data_transforms=val_transforms,
-                                    metadata={
-                                        'orders': val_orders,
-                                    },extract_filenames=extract_filenames)
+        train_dataset = SingleCellDataset(train_files, train_labels, data_transforms=train_transforms,
+                                          metadata={
+                                              'orders': train_orders,
+                                          },
+                                          extract_filenames=extract_filenames)
+        val_dataset = SingleCellDataset(val_files, val_labels, data_transforms=val_transforms,
+                                        metadata={
+                                            'orders': val_orders,
+                                        }, extract_filenames=extract_filenames)
     # TODO: should we pin memory?
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True)
