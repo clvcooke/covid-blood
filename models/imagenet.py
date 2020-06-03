@@ -8,7 +8,7 @@ def set_parameter_requires_grad(model, use_pretrained):
             param.requires_grad = False
 
 
-def get_model(model_name, num_outputs, use_pretrained):
+def get_model(model_name, num_outputs, use_pretrained=False):
     if model_name == "resnet":
         """ Resnet18
         """
