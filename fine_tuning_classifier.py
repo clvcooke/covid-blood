@@ -38,8 +38,8 @@ def main():
     }
 
     if config.task == 'covid-class':
-        train_loader, val_loader = load_all_patients(train_transforms=data_transforms['train'],
-                                                     val_transforms=data_transforms['val'],
+        train_loader, val_loader, test_loader = load_all_patients(train_transforms=data_transforms['train'],
+                                                     test_transforms=data_transforms['val'],
                                                      batch_size=config.batch_size,
                                                      fold_number=config.fold_number,
                                                      exclusion=config.exclusion)
