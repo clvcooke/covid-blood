@@ -43,7 +43,7 @@ def predict(model_name, model_path, output_file):
     ])
 
     train_loader, val_loader = load_all_patients(train_transforms=transform,
-                                                 val_transforms=transform,
+                                                 test_transforms=transform,
                                                  batch_size=batch_size,
                                                  extract_filenames=True)
     num_classes = 9
