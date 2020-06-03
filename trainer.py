@@ -8,14 +8,18 @@ import os
 
 class ClassificationTrainer:
 
-    def __init__(self, model, optimizer, train_loader, val_loader, batch_size, epochs, patience=10):
+    def __init__(self, model, optimizer, train_loader, val_loader, test_loader=None, test_interval=5, batch_size=8, epochs=50,
+                 patience=10):
         self.model = model
         self.optimizer = optimizer
         self.train_loader = train_loader
         self.val_loader = val_loader
+        self.test_loader = test_loader
+        self.test_interval = test_interval
         self.batch_size = batch_size
         self.num_train = len(train_loader)
         self.num_val = len(val_loader)
+        self.num_test = len(test_loader)
         self.epochs = epochs
         self.curr_epoch = 0
         self.use_gpu = next(self.model.parameters()).is_cuda
@@ -36,6 +40,20 @@ class ClassificationTrainer:
             train_loss, train_acc = self.run_one_epoch(training=True)
             val_loss, val_acc = self.run_one_epoch(training=False)
             msg = f'train loss {train_loss:.3f} train acc {train_acc:.3f} -- val loss {val_loss:.3f} val acc {val_acc:.3f}'
+            metrics = {
+                'train_loss': train_loss,
+                'train_acc': train_acc,
+                'val_loss': val_loss,
+                'val_acc': val_acc
+            }
+
+            if self.test_loader is not None and ((epoch % self.test_interval) == 0 or epoch == (self.epochs - 1)):
+                test_loss, test_acc = self.run_one_epoch(training=False, testing=True)
+                metrics.update({
+                    'test_loss': test_loss,
+                    'test_acc': test_acc
+                })
+                msg += f' -- test loss {test_loss:.3f} test acc {test_acc:.3f}'
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
                 msg += '[*]'
@@ -45,26 +63,31 @@ class ClassificationTrainer:
             else:
                 epochs_since_best += 1
             print(msg)
-            wandb.log({
-                'train_loss': train_loss,
-                'train_acc': train_acc,
-                'val_loss': val_loss,
-                'val_acc': val_acc
-            }, step=epoch)
+
+            wandb.log(metrics, step=epoch)
             if epochs_since_best > self.patience:
                 epochs_since_best = 0
                 self.lr = self.lr / np.sqrt(10)
                 for param_group in self.optimizer.param_groups:
                     param_group['lr'] = self.lr
 
-    def run_one_epoch(self, training):
+    def run_one_epoch(self, training, testing=False):
         losses = AverageMeter()
         accs = AverageMeter()
         if training:
+            # using train set, doing updates
+            if testing:
+                raise RuntimeError()
             amnt = self.num_train
             loader = self.train_loader
             self.model.train()
+        elif testing:
+            # evaling test set
+            amnt = self.num_test
+            loader = self.test_loader
+            self.model.eval()
         else:
+            # evaling val set
             amnt = self.num_val
             loader = self.val_loader
             self.model.eval()

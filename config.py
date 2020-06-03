@@ -46,6 +46,8 @@ misc_arg.add_argument('--gpu_number', type=int, default=0,
                       help="Which GPU to use")
 misc_arg.add_argument('--task', type=str, default='covid-class',
                       help='Which task to launch')
+misc_arg.add_argument('--test_interval', type=int, default=5,
+                      help="How often to evaluate the test set")
 
 
 def get_config():

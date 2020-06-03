@@ -42,10 +42,10 @@ def predict(model_name, model_path, output_file):
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ])
 
-    train_loader, val_loader = load_all_patients(train_transforms=transform,
-                                                 test_transforms=transform,
-                                                 batch_size=batch_size,
-                                                 extract_filenames=True)
+    train_loader, val_loader, test_loader = load_all_patients(train_transforms=transform,
+                                                              test_transforms=transform,
+                                                              batch_size=batch_size,
+                                                              extract_filenames=True)
     num_classes = 9
     model = get_model(model_name=model_name, num_outputs=num_classes)
     load_model(model, model_path)
@@ -53,8 +53,10 @@ def predict(model_name, model_path, output_file):
     # now run prediction step
     train_results = infer_loader(model, train_loader)
     val_results = infer_loader(model, val_loader)
+    test_results = infer_loader(model, test_loader)
     results = train_results
     results.update(val_results)
+    results.update(test_results)
     with open(output_file, 'w') as fp:
         json.dump(results, fp)
     print("Success")
@@ -62,10 +64,9 @@ def predict(model_name, model_path, output_file):
 
 if __name__ == "__main__":
     username = pwd.getpwuid(os.getuid()).pw_name
-    model_id = '3ml20ia2'
+    model_id = '1dr34rc5'
     model_path = f"/hddraid5/data/{username}/models/{model_id}.pth"
     model_name = 'densenet'
-    output_file = '/home/colin/testing/wbc_test.json'
+    output_file = f'/home/colin/testing/wbc_class_{model_id}.json'
     assert os.path.splitext(output_file)[1] == '.json'
     predict(model_name=model_name, model_path=model_path, output_file=output_file)
-
