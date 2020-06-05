@@ -99,6 +99,17 @@ class SingleCellDataset(torch.utils.data.Dataset):
             return image, label
 
 
+def get_strat_fold(x, y, fold_seed=0, fold_index=0, fold_count=6):
+    assert fold_index < fold_count
+    folder = model_selection.StratifiedKFold(n_splits=fold_count, shuffle=True, random_state=fold_seed)
+    train_split, test_split = list(folder.split(x, y))[fold_index]
+    x = np.array(x)
+    y = np.array(y)
+    train_x, train_y = x[train_split], y[train_split]
+    test_x, test_y = x[test_split], y[test_split]
+    return train_x, train_y, test_x, test_y
+
+
 def get_fold(data, fold_seed=0, fold_index=0, fold_count=6):
     """
     :param data: data to split
@@ -145,13 +156,13 @@ def get_patient_orders(exclude_orders=None):
     # sort by order number, python 3.7 has dictionaries ordered by default
     negative_images = dict(sorted(negative_images.items()))
     positive_images = dict(sorted(positive_images.items()))
-    return negative_images, positive_images
+    all_images = dict(negative_images, **positive_images)
+    return negative_images, positive_images, all_images
 
 
-def load_orders_into_bags(orders, image_paths, label, exclusion=None):
+def load_orders_into_bags(orders, image_paths, labels, exclusion=None):
     bags = []
-    for order in tqdm(orders):
-
+    for order, label in tqdm(zip(orders, labels)):
         if exclusion is None:
             files = image_paths[order]
         else:
@@ -168,11 +179,11 @@ def load_orders_into_bags(orders, image_paths, label, exclusion=None):
     return bags
 
 
-def load_orders(orders, image_paths, label, exclusion=None):
+def load_orders(orders, image_paths, labels, exclusion=None):
     all_labels = []
     all_orders = []
     all_files = []
-    for order in tqdm(orders):
+    for order, label in tqdm(zip(orders, labels)):
         labels = []
         orders = []
         files = []
@@ -225,15 +236,15 @@ def load_all_patients(train_transforms=None, test_transforms=None, group_by_pati
     :param fold_count: number of folds to use, validation split = 1/fold_count
     :return: iterable dataset objects for training and validation
     """
-    negative_image_paths, positive_image_paths = get_patient_orders()
+    negative_image_paths, positive_image_paths, all_image_paths = get_patient_orders()
     negative_orders = list(negative_image_paths.keys())
     positive_orders = list(positive_image_paths.keys())
+    orders = negative_orders + positive_orders
+    labels = [0] * len(negative_orders) + [1] * len(positive_orders)
     # split into train/val
     # TODO: add test data splitting
-    train_positive_orders, test_positive_orders = get_fold(positive_orders, fold_index=fold_number, fold_seed=fold_seed,
-                                                           fold_count=fold_count)
-    train_negative_orders, test_negative_orders = get_fold(negative_orders, fold_index=fold_number, fold_seed=fold_seed,
-                                                           fold_count=fold_count)
+    train_orders, train_labels, test_orders, test_labels = get_strat_fold(orders, labels, fold_index=fold_number,
+                                                                          fold_seed=fold_seed, fold_count=fold_count)
     if exclusion is not None:
         with open(exclusion) as fp:
             # set to go fast
@@ -242,45 +253,15 @@ def load_all_patients(train_transforms=None, test_transforms=None, group_by_pati
         # empty set as default
         exclusion_set = set()
     if group_by_patient:
-        train_pos_bags = load_orders_into_bags(train_positive_orders,
-                                               positive_image_paths, 1,
-                                               exclusion=exclusion_set)
-        train_neg_bags = load_orders_into_bags(train_negative_orders,
-                                               negative_image_paths, 0,
-                                               exclusion=exclusion_set)
-        train_bags = train_pos_bags + train_neg_bags
-
-        test_pos_bags = load_orders_into_bags(test_positive_orders,
-                                              positive_image_paths, 1,
-                                              exclusion=exclusion_set)
-        test_neg_bags = load_orders_into_bags(test_negative_orders,
-                                              negative_image_paths, 0,
-                                              exclusion=exclusion_set)
-        test_bags = test_pos_bags + test_neg_bags
+        train_bags = load_orders_into_bags(train_orders, all_image_paths, train_labels, exclusion=exclusion_set)
+        test_bags = load_orders_into_bags(test_orders, all_image_paths, test_labels, exclusion=exclusion_set)
         training_dataset = BagDataset(train_bags, data_transforms=train_transforms)
         test_dataset = BagDataset(test_bags, data_transforms=test_transforms)
     else:
-        # first we load the data into memory from disk
-        train_pos_labels, train_pos_orders, train_pos_files = load_orders(train_positive_orders,
-                                                                          positive_image_paths, 1,
-                                                                          exclusion=exclusion_set)
-        train_neg_labels, train_neg_orders, train_neg_files = load_orders(train_negative_orders,
-                                                                          negative_image_paths, 0,
-                                                                          exclusion=exclusion_set)
-        train_labels = train_pos_labels + train_neg_labels
-        train_orders = train_pos_orders + train_neg_orders
-        train_files = train_pos_files + train_neg_files
-
-        test_pos_labels, test_pos_orders, test_pos_files = load_orders(test_positive_orders,
-                                                                       positive_image_paths, 1,
-                                                                       exclusion=exclusion_set)
-        test_neg_labels, test_neg_orders, test_neg_files = load_orders(test_negative_orders,
-                                                                       negative_image_paths, 0,
-                                                                       exclusion=exclusion_set)
-        test_labels = test_pos_labels + test_neg_labels
-        test_orders = test_pos_orders + test_neg_orders
-        test_files = test_pos_files + test_neg_files
-
+        train_labels, train_orders, train_files = load_orders(train_orders, all_image_paths, train_labels,
+                                                              exclusion=exclusion_set)
+        test_labels, test_orders, test_files = load_orders(test_orders, all_image_paths, test_labels,
+                                                           exclusion=exclusion_set)
         # now we want to make a dataset out of the images/labels
         training_dataset = SingleCellDataset(train_files, train_labels, data_transforms=train_transforms,
                                              metadata={
@@ -292,13 +273,11 @@ def load_all_patients(train_transforms=None, test_transforms=None, group_by_pati
                                          metadata={
                                              'orders': test_orders,
                                          }, extract_filenames=extract_filenames)
-    # TODO: should we pin memory?
     val_split = 0.8
     training_len = len(training_dataset)
     train_len = int(training_len * val_split)
     train_dataset, validation_dataset = random_split(training_dataset, [train_len, training_len - train_len])
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    val_loader = DataLoader(validation_dataset, batch_size=batch_size, shuffle=True)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
-
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, pin_memory=True)
+    val_loader = DataLoader(validation_dataset, batch_size=batch_size, shuffle=True, pin_memory=True)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, pin_memory=True)
     return train_loader, val_loader, test_loader

@@ -16,7 +16,7 @@ def add_argument_group(name):
 
 # data params
 data_arg = add_argument_group('Data Params')
-data_arg.add_argument('--batch_size', type=int, default=4,
+data_arg.add_argument('--batch_size', type=int, default=16,
                       help='# of images in each batch of data')
 data_arg.add_argument('--exclusion', type=str, default=None,
                       help='Path of file containing list of files to exclude')
@@ -46,6 +46,8 @@ misc_arg.add_argument('--gpu_number', type=int, default=0,
                       help="Which GPU to use")
 misc_arg.add_argument('--task', type=str, default='covid-class',
                       help='Which task to launch')
+misc_arg.add_argument('--test_interval', type=int, default=5,
+                      help="How often to evaluate the test set")
 
 
 def get_config():
