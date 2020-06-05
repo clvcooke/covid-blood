@@ -1,4 +1,5 @@
 from sklearn.metrics import roc_auc_score, roc_curve
+from torchvision import transforms
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -86,3 +87,23 @@ def load_model(model, model_path):
     model_state_dict = torch.load(model_path)
     model.load_state_dict(model_state_dict)
     return model
+
+
+def get_covid_transforms(image_size=224):
+    data_transforms = {
+        'train': transforms.Compose([
+            transforms.CenterCrop(image_size),
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomVerticalFlip(),
+            transforms.ColorJitter(brightness=0.10, contrast=0.20, saturation=0.20, hue=0.20),
+            transforms.RandomAffine(degrees=10, scale=(1.05, 0.95), shear=10),
+            transforms.ToTensor(),
+            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+        ]),
+        'val': transforms.Compose([
+            transforms.CenterCrop(image_size),
+            transforms.ToTensor(),
+            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+        ]),
+    }
+    return data_transforms

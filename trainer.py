@@ -96,15 +96,18 @@ class ClassificationTrainer:
                 x, y, = data
                 if self.use_gpu:
                     x, y, = x.cuda(), y.cuda()
-                output = self.model(x)
                 if training:
+                    output = self.model(x)
                     self.optimizer.zero_grad()
-                loss = self.criterion(output, y)
-                _, preds = torch.max(output, 1)
-                acc = torch.sum(preds == y.data).float() / len(y)
-                if training:
+                    loss = self.criterion(output, y)
                     loss.backward()
                     self.optimizer.step()
+                else:
+                    with torch.no_grad():
+                        output = self.model(x)
+                        loss = self.criterion(output, y)
+                _, preds = torch.max(output, 1)
+                acc = torch.sum(preds == y.data).float() / len(y)
                 losses.update(loss.data)
                 accs.update(acc.data)
                 pbar.set_description(f" - loss: {losses.avg:.3f} acc {accs.avg:.3f}")
