@@ -28,11 +28,11 @@ def main():
     if config.task != 'covid-class':
         raise RuntimeError("Task not supported")
     train_loader, val_loader, test_loader = load_all_patients(train_transforms=data_transforms['train'],
-                                                 test_transforms=data_transforms['val'],
-                                                 batch_size=config.batch_size,
-                                                 fold_number=config.fold_number,
-                                                 exclusion=config.exclusion,
-                                                 group_by_patient=True)
+                                                              test_transforms=data_transforms['val'],
+                                                              batch_size=config.batch_size,
+                                                              fold_number=config.fold_number,
+                                                              exclusion=config.exclusion,
+                                                              group_by_patient=True)
     model = GatedAttentionModel(
         backbone_name=config.model_name,
         num_classes=2
@@ -42,6 +42,7 @@ def main():
 
     optimizer = optim.Adam(model.parameters(), lr=0.001, betas=(0.9, 0.999))
     trainer = ClassificationTrainer(model=model, optimizer=optimizer, train_loader=train_loader, val_loader=val_loader,
+                                    test_loader=test_loader, test_interval=config.test_interval,
                                     batch_size=config.batch_size, epochs=config.epochs, patience=7)
     trainer.train()
 

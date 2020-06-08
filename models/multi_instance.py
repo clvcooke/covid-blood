@@ -13,7 +13,7 @@ class GatedAttentionModel(nn.Module):
         self.hidden_size = hidden_size
         self.num_classes = num_classes
 
-        self.backbone = get_model(backbone_name, self.instance_hidden_size, pretrained_backbone, pretrained_backbone)
+        self.backbone = get_model(backbone_name, self.instance_hidden_size, pretrained_backbone)
 
         self.attention_v = nn.Sequential(
             nn.Linear(self.instance_hidden_size, self.hidden_size),
@@ -52,7 +52,7 @@ class AttentionModel(nn.Module):
         self.hidden_size = hidden_size
         self.num_classes = num_classes
 
-        self.backbone = get_model(backbone_name, self.instance_hidden_size, pretrained_backbone, pretrained_backbone)
+        self.backbone = get_model(backbone_name, self.instance_hidden_size, pretrained_backbone)
         self.attention = nn.Sequential(
             nn.Linear(self.instance_hidden_size, self.hidden_size),
             nn.Tanh(),
