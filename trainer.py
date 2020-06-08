@@ -8,8 +8,8 @@ import os
 
 class ClassificationTrainer:
 
-    def __init__(self, model, optimizer, train_loader, val_loader, test_loader=None, test_interval=5, batch_size=8, epochs=50,
-                 patience=10):
+    def __init__(self, model, optimizer, train_loader, val_loader, test_loader=None, test_interval=5, batch_size=8,
+                 epochs=50, patience=10):
         self.model = model
         self.optimizer = optimizer
         self.train_loader = train_loader
@@ -19,7 +19,7 @@ class ClassificationTrainer:
         self.batch_size = batch_size
         self.num_train = len(train_loader)
         self.num_val = len(val_loader)
-        self.num_test = len(test_loader)
+        self.num_test = len(test_loader) if test_loader is not None else 0
         self.epochs = epochs
         self.curr_epoch = 0
         self.use_gpu = next(self.model.parameters()).is_cuda
