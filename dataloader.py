@@ -138,6 +138,11 @@ def get_patient_orders(exclude_orders=None):
         test_results = test_results + table_test_results
     positive_images = {}
     negative_images = {}
+    all_image_paths = glob.glob(os.path.join(base_path, 'COVID Research Images', '**', '*.jpg'),
+                                recursive=True)
+    for path in all_image_paths:
+        if 'Not WBC' in path:
+            raise RuntimeError()
     for order, test_result in tqdm(zip(orders, test_results), desc='reading excel files', total=len(orders)):
         try:
             np.int(order)
@@ -149,9 +154,8 @@ def get_patient_orders(exclude_orders=None):
                 continue
         except (TypeError, AttributeError, ValueError):
             continue
-        all_image_paths = glob.glob(os.path.join(base_path, 'COVID Research Images', '**', str(order), '**', '*.jpg'),
-                                    recursive=True)
-        image_paths = [image_path for image_path in all_image_paths if
+        order_paths = [ip for ip in all_image_paths if str(order) in ip]
+        image_paths = [image_path for image_path in order_paths if
                        (os.path.getsize(image_path) < IMAGE_SIZE_CUTOFF_UPPER and os.path.getsize(
                            image_path) > IMAGE_SIZE_CUTOFF_LOWER)]
         if len(image_paths) == 0:
@@ -284,6 +288,8 @@ def load_all_patients(train_transforms=None, test_transforms=None, group_by_pati
     training_len = len(training_dataset)
     train_len = int(training_len * val_split)
     train_dataset, validation_dataset = random_split(training_dataset, [train_len, training_len - train_len])
+    # swapping data transforms
+    validation_dataset.data_transforms = test_dataset.data_transforms
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, pin_memory=True)
     val_loader = DataLoader(validation_dataset, batch_size=batch_size, shuffle=True, pin_memory=True)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, pin_memory=True)

@@ -23,7 +23,21 @@ def infer_loader(model, loader):
     return inference_results
 
 
-def predict(model_name, model_path, output_file):
+def infer_loader_cont(model, loader):
+    # how to get filenames
+    inference_results = {}
+    for (images, filenames), _ in tqdm(loader):
+        # assume cuda
+        images = images.cuda()
+        results = model(images)
+        preds = results
+        preds = preds.tolist()
+        for filename, pred in zip(filenames, preds):
+            inference_results[filename] = pred
+    return inference_results
+
+
+def predict(model_name, model_path, output_file, continous=False):
     """
     Process predictions for wbc classification
     :return:
@@ -51,9 +65,13 @@ def predict(model_name, model_path, output_file):
     load_model(model, model_path)
     model.cuda()
     # now run prediction step
-    train_results = infer_loader(model, train_loader)
-    val_results = infer_loader(model, val_loader)
-    test_results = infer_loader(model, test_loader)
+    if continous:
+        infer = infer_loader_cont
+    else:
+        infer = infer_loader
+    train_results = infer(model, train_loader)
+    val_results = infer(model, val_loader)
+    test_results = infer(model, test_loader)
     results = train_results
     results.update(val_results)
     results.update(test_results)
@@ -67,6 +85,10 @@ if __name__ == "__main__":
     model_id = '1dr34rc5'
     model_path = f"/hddraid5/data/{username}/models/{model_id}.pth"
     model_name = 'densenet'
-    output_file = f'/home/colin/testing/wbc_class_{model_id}.json'
+    continous = True
+    if continous:
+        output_file = f'/home/colin/testing/wbc_class_{model_id}_v2_cont.json'
+    else:
+        output_file = f'/home/colin/testing/wbc_class_{model_id}_v2.json'
     assert os.path.splitext(output_file)[1] == '.json'
-    predict(model_name=model_name, model_path=model_path, output_file=output_file)
+    predict(model_name=model_name, model_path=model_path, output_file=output_file, continous=continous)

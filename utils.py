@@ -107,3 +107,8 @@ def get_covid_transforms(image_size=224):
         ]),
     }
     return data_transforms
+
+
+def get_user():
+    username = pwd.getpwuid(os.getuid()).pw_name
+    return username
