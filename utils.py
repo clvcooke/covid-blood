@@ -83,9 +83,12 @@ def save_model(model, model_name, model_dir=None):
     print(f"Saved model to {model_path}")
 
 
-def load_model(model, model_path):
+def load_model(model, model_path, strict=True):
     model_state_dict = torch.load(model_path)
-    model.load_state_dict(model_state_dict)
+    try:
+        model.load_state_dict(model_state_dict, strict=strict)
+    except:
+        pass
     return model
 
 
@@ -107,3 +110,8 @@ def get_covid_transforms(image_size=224):
         ]),
     }
     return data_transforms
+
+
+def get_user():
+    username = pwd.getpwuid(os.getuid()).pw_name
+    return username
