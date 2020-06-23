@@ -106,8 +106,12 @@ def get_strat_fold(x, y, fold_seed=0, fold_index=0, fold_count=6):
     x = np.array(x)
     y = np.array(y)
     train_x, train_y = x[train_split], y[train_split]
+    val_folder = model_selection.StratifiedKFold(n_splits=5, shuffle=True, random_state=fold_seed)
+    train_split, val_split = list(val_folder.split(train_x, train_y))[fold_index]
+    val_x, val_y = train_x[val_split], train_y[val_split]
+    train_x, train_y = train_x[train_split], train_y[train_split]
     test_x, test_y = x[test_split], y[test_split]
-    return train_x, train_y, test_x, test_y
+    return train_x, train_y, val_x, val_y, test_x, test_y
 
 
 def get_fold(data, fold_seed=0, fold_index=0, fold_count=6):
@@ -254,8 +258,10 @@ def load_all_patients(train_transforms=None, test_transforms=None, group_by_pati
     labels = [0] * len(negative_orders) + [1] * len(positive_orders)
     # split into train/val
     # TODO: add test data splitting
-    train_orders, train_labels, test_orders, test_labels = get_strat_fold(orders, labels, fold_index=fold_number,
-                                                                          fold_seed=fold_seed, fold_count=fold_count)
+    train_orders, train_labels, val_orders, val_labels, test_orders, test_labels = get_strat_fold(orders, labels,
+                                                                                                  fold_index=fold_number,
+                                                                                                  fold_seed=fold_seed,
+                                                                                                  fold_count=fold_count)
     if exclusion is not None:
         with open(exclusion) as fp:
             # set to go fast
@@ -265,12 +271,16 @@ def load_all_patients(train_transforms=None, test_transforms=None, group_by_pati
         exclusion_set = set()
     if group_by_patient:
         train_bags = load_orders_into_bags(train_orders, all_image_paths, train_labels, exclusion=exclusion_set)
+        val_bags = load_orders_into_bags(val_orders, all_image_paths, val_labels, exclusion=exclusion_set)
         test_bags = load_orders_into_bags(test_orders, all_image_paths, test_labels, exclusion=exclusion_set)
         training_dataset = BagDataset(train_bags, data_transforms=train_transforms)
+        val_dataset = BagDataset(val_bags, data_transforms=test_transforms)
         test_dataset = BagDataset(test_bags, data_transforms=test_transforms)
     else:
         train_labels, train_orders, train_files = load_orders(train_orders, all_image_paths, train_labels,
                                                               exclusion=exclusion_set)
+        val_labels, val_orders, val_files = load_orders(val_orders, all_image_paths, val_labels,
+                                                        exclusion=exclusion_set)
         test_labels, test_orders, test_files = load_orders(test_orders, all_image_paths, test_labels,
                                                            exclusion=exclusion_set)
         # now we want to make a dataset out of the images/labels
@@ -279,18 +289,16 @@ def load_all_patients(train_transforms=None, test_transforms=None, group_by_pati
                                                  'orders': train_orders,
                                              },
                                              extract_filenames=extract_filenames)
-
+        val_dataset = SingleCellDataset(val_files, val_labels, data_transforms=test_transforms,
+                                        metadata={
+                                            'orders': val_orders
+                                        }, extract_filenames=extract_filenames)
         test_dataset = SingleCellDataset(test_files, test_labels, data_transforms=test_transforms,
                                          metadata={
                                              'orders': test_orders,
                                          }, extract_filenames=extract_filenames)
-    val_split = 0.8
-    training_len = len(training_dataset)
-    train_len = int(training_len * val_split)
-    train_dataset, validation_dataset = random_split(training_dataset, [train_len, training_len - train_len])
     # swapping data transforms
-    validation_dataset.data_transforms = test_dataset.data_transforms
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, pin_memory=True)
-    val_loader = DataLoader(validation_dataset, batch_size=batch_size, shuffle=True, pin_memory=True)
+    train_loader = DataLoader(training_dataset, batch_size=batch_size, shuffle=True, pin_memory=True)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, pin_memory=True)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, pin_memory=True)
     return train_loader, val_loader, test_loader
