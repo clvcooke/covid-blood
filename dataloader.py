@@ -9,6 +9,7 @@ import os
 import glob
 from PIL import Image
 from tqdm import tqdm
+import cv2 as cv
 
 # used to filter out large images (not of single cells)
 IMAGE_SIZE_CUTOFF_UPPER = 800000
@@ -16,20 +17,38 @@ IMAGE_SIZE_CUTOFF_UPPER = 800000
 IMAGE_SIZE_CUTOFF_LOWER = 100
 
 
+def filter_wbc(path, lower_bound=(0, 100, 0), upper_bound=(204, 255, 127), invert=False):
+    image = cv.cvtColor(cv.imread(path), cv.COLOR_BGR2RGB)
+    image_g = image.copy()
+    image_s = cv.cvtColor(image_g, cv.COLOR_RGB2LAB)
+    mask = cv.inRange(image_s, lower_bound, upper_bound)
+    mask = cv.morphologyEx(mask, cv.MORPH_OPEN, kernel=np.ones((9, 9), np.uint8), iterations=1)
+    mask_rgb = cv.cvtColor(mask, cv.COLOR_GRAY2RGB)
+    if invert:
+        mask_rgb = (mask_rgb == 0).astype(mask_rgb.dtype)
+    image_g = image_g & mask_rgb
+    return Image.fromarray(image_g)
+
+
 class ImageCache:
-    def __init__(self, cache_amnt=-1):
+    def __init__(self, cache_amnt=-1, cell_mask=None):
         self.cached = {}
+        self.cell_mask = cell_mask
 
     def get(self, path):
         if path not in self.cached:
-            self.cached[path] = Image.open(path).copy()
+            if self.cell_mask is not None:
+                im = filter_wbc(path, invert=self.cell_mask == 'nuc')
+            else:
+                im = Image.open(path).copy()
+            self.cached[path] = im
         else:
             return self.cached[path]
         return self.cached[path]
 
 
 class BagDataset(torch.utils.data.Dataset):
-    def __init__(self, bags, data_transforms=None, metadata=None, cache_images=True):
+    def __init__(self, bags, data_transforms=None, metadata=None, cache_images=True, cell_mask=None):
         """
 
         :param bags: list of dicts containing paths/labels/orders
@@ -41,7 +60,7 @@ class BagDataset(torch.utils.data.Dataset):
         self.data_transforms = data_transforms
         self.cache_images = cache_images
         if self.cache_images:
-            self.image_cache = ImageCache()
+            self.image_cache = ImageCache(cell_mask=cell_mask)
 
     def __len__(self):
         return len(self.bags)
@@ -61,7 +80,7 @@ class BagDataset(torch.utils.data.Dataset):
 
 class SingleCellDataset(torch.utils.data.Dataset):
     def __init__(self, image_paths, image_labels, data_transforms=None, metadata=None, extract_filenames=False,
-                 cache_images=True):
+                 cache_images=True, cell_mask=None):
         """
 
         :param data_x: input data to network
@@ -77,7 +96,7 @@ class SingleCellDataset(torch.utils.data.Dataset):
         self.extract_filenames = extract_filenames
         self.cache_images = cache_images
         if cache_images:
-            self.image_cache = ImageCache()
+            self.image_cache = ImageCache(cell_mask=cell_mask)
 
     def __len__(self):
         return len(self.image_labels)
@@ -107,7 +126,7 @@ def get_strat_fold(x, y, fold_seed=0, fold_index=0, fold_count=6):
     y = np.array(y)
     train_x, train_y = x[train_split], y[train_split]
     val_folder = model_selection.StratifiedKFold(n_splits=5, shuffle=True, random_state=fold_seed)
-    train_split, val_split = list(val_folder.split(train_x, train_y))[fold_index]
+    train_split, val_split = list(val_folder.split(train_x, train_y))[0]
     val_x, val_y = train_x[val_split], train_y[val_split]
     train_x, train_y = train_x[train_split], train_y[train_split]
     test_x, test_y = x[test_split], y[test_split]
@@ -241,7 +260,8 @@ def load_all_patients(train_transforms=None, test_transforms=None, group_by_pati
                       fold_seed=0,
                       fold_count=6,
                       extract_filenames=False,
-                      exclusion=None):
+                      exclusion=None,
+                      cell_mask=None):
     """
     Loads all the data from the Duke COVID +/- dataset
     :param group_by_patient: return one entry per patient (bag style), default false
@@ -288,15 +308,18 @@ def load_all_patients(train_transforms=None, test_transforms=None, group_by_pati
                                              metadata={
                                                  'orders': train_orders,
                                              },
-                                             extract_filenames=extract_filenames)
+                                             extract_filenames=extract_filenames,
+                                             cell_mask=cell_mask)
         val_dataset = SingleCellDataset(val_files, val_labels, data_transforms=test_transforms,
                                         metadata={
                                             'orders': val_orders
-                                        }, extract_filenames=extract_filenames)
+                                        }, extract_filenames=extract_filenames,
+                                        cell_mask=cell_mask)
         test_dataset = SingleCellDataset(test_files, test_labels, data_transforms=test_transforms,
                                          metadata={
                                              'orders': test_orders,
-                                         }, extract_filenames=extract_filenames)
+                                         }, extract_filenames=extract_filenames,
+                                         cell_mask=cell_mask)
     # swapping data transforms
     train_loader = DataLoader(training_dataset, batch_size=batch_size, shuffle=True, pin_memory=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, pin_memory=True)
