@@ -19,12 +19,14 @@ def main():
     setup_torch(config.random_seed, config.use_gpu, config.gpu_number)
     wandb.config.update(config)
     data_transforms = get_covid_transforms(image_size=224)
+    cell_mask = config.cell_mask
     if config.task == 'covid-class':
         train_loader, val_loader, test_loader = load_all_patients(train_transforms=data_transforms['train'],
                                                                   test_transforms=data_transforms['val'],
                                                                   batch_size=config.batch_size,
                                                                   fold_number=config.fold_number,
-                                                                  exclusion=config.exclusion)
+                                                                  exclusion=config.exclusion,
+                                                                  cell_mask=cell_mask)
         num_classes = 2
     elif config.task == 'wbc-class':
         train_loader, val_loader = load_pbc_data(train_transforms=data_transforms['train'],

@@ -36,7 +36,7 @@ train_arg.add_argument('--fold_number', type=int, default=0,
                        help='Which fold to use for validation')
 train_arg.add_argument('--model_name', type=str, default='densenet',
                        help='which architecture to use')
-train_arg.add_argument('--pretrained_model', type=str2bool, default=True,
+train_arg.add_argument('--pretrained_model', type=str2bool, default=False,
                        help='pretraining True or False')
 
 misc_arg = add_argument_group('Misc.')
@@ -48,6 +48,8 @@ misc_arg.add_argument('--task', type=str, default='covid-class',
                       help='Which task to launch')
 misc_arg.add_argument('--test_interval', type=int, default=5,
                       help="How often to evaluate the test set")
+misc_arg.add_argument('--cell_mask', type=str, default=None,
+                      help='Mask to apply to cell before loading the image')
 
 
 def get_config():
