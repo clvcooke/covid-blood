@@ -15,7 +15,7 @@ def predict(arch_name, model_file, output_file, fold_number):
     transforms = get_covid_transforms()
     batch_size = 8
     train_loader, val_loader, test_loader = load_all_patients(train_transforms=transforms['train'],
-                                                              test_transforms=transforms['train'],
+                                                              test_transforms=transforms['val'],
                                                               batch_size=batch_size, extract_filenames=True,
                                                               fold_number=fold_number)
     num_classes = 2
@@ -60,7 +60,7 @@ def run_single(model_id, fold, gpu_number):
     if not os.path.exists(model_path):
         model_path = f"/home/{username}/models/{model_id}.pth"
     arch = "densenet"
-    output_path = f"/home/{username}/results_cov/covid_class_v4_{model_id}_fold_{fold}.json"
+    output_path = f"/home/{username}/results_cov/covid_class_v5_{model_id}_fold_{fold}.json"
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     if os.path.exists(output_path):
         print(f"Model ID {model_id} has already been run")

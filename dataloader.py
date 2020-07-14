@@ -325,3 +325,40 @@ def load_all_patients(train_transforms=None, test_transforms=None, group_by_pati
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, pin_memory=True)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, pin_memory=True)
     return train_loader, val_loader, test_loader
+
+
+def load_control(transforms, batch_size=8, extract_filenames=False):
+    positive_orders = ["10050549913", "10050639391", "10050638850", "10050669026", "10050672264", "10050708114",
+                       "10050708825", "10050716522", "10050716999", "10050718635", "10050786128", "10050819299",
+                       "10050819876", "10050813540", "10050858192", "10050878757", "10050853158", "10050856321",
+                       "10050866830", "10050891470", "10050890630", "10050893839", "10050898275", "10050902673",
+                       "10050915260", "10050905990", "10050899804", "10050968617", "10050997956", "10050990507",
+                       "10050934966", "10050956238"][-20:]
+    negative_orders = os.listdir("/hddraid5/data/colin/covid-data/control_data/negative/COVID Imaging Negative Controls")
+    negative_orders = [no for no in negative_orders if no.isdigit()]
+    positive_image_paths = {}
+    for order in positive_orders:
+        order_images = glob.glob(f"/hddraid5/data/colin/covid-data/control_data/positive/**/{order}/*.jpg")
+        order_images = [image_path for image_path in order_images if
+                       (os.path.getsize(image_path) < IMAGE_SIZE_CUTOFF_UPPER and os.path.getsize(
+                           image_path) > IMAGE_SIZE_CUTOFF_LOWER)]
+        positive_image_paths[order] = order_images
+    negative_image_paths = {}
+    for order in negative_orders:
+        order_images = glob.glob(f"/hddraid5/data/colin/covid-data/control_data/negative/COVID Imaging Negative Controls/{order}/*.jpg")
+        order_images = [image_path for image_path in order_images if
+                        (os.path.getsize(image_path) < IMAGE_SIZE_CUTOFF_UPPER and os.path.getsize(
+                            image_path) > IMAGE_SIZE_CUTOFF_LOWER)]
+        negative_image_paths[order] = order_images
+    all_image_paths = dict(negative_image_paths, **positive_image_paths)
+    negative_orders = list(negative_image_paths.keys())
+    positive_orders = list(positive_image_paths.keys())
+    orders = negative_orders + positive_orders
+    labels = [0] * len(negative_orders) + [1] * len(positive_orders)
+    control_labels, control_orders, control_files = load_orders(orders, all_image_paths, labels)
+    control_dataset = SingleCellDataset(control_files, control_labels, data_transforms=transforms,
+                                     metadata={
+                                         'orders': control_orders,
+                                     }, extract_filenames=extract_filenames)
+    control_loader = DataLoader(control_dataset, batch_size=batch_size, shuffle=True, pin_memory=True)
+    return control_loader

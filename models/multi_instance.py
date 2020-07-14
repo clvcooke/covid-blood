@@ -14,6 +14,12 @@ class GatedAttentionModel(nn.Module):
         self.num_classes = num_classes
 
         self.backbone = get_model(backbone_name, self.instance_hidden_size, pretrained_backbone)
+        # # unfreeze backbone weights
+        # for param in self.backbone.features[-1:].parameters():
+        #     param.requires_grad = True
+        #
+        # for param in self.backbone.classifier.parameters():
+        #     param.requires_grad = True
 
         self.attention_v = nn.Sequential(
             nn.Linear(self.instance_hidden_size, self.hidden_size),
