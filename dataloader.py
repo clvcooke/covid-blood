@@ -118,14 +118,15 @@ class SingleCellDataset(torch.utils.data.Dataset):
             return image, label
 
 
-def get_strat_fold(x, y, fold_seed=0, fold_index=0, fold_count=6):
+def get_strat_fold(x, y, fold_seed=0, fold_index=0, fold_count=6, skew=False):
     assert fold_index < fold_count
-    folder = model_selection.StratifiedKFold(n_splits=fold_count, shuffle=True, random_state=fold_seed)
+    shuffle = not skew
+    folder = model_selection.StratifiedKFold(n_splits=fold_count, shuffle=shuffle, random_state=fold_seed)
     train_split, test_split = list(folder.split(x, y))[fold_index]
     x = np.array(x)
     y = np.array(y)
     train_x, train_y = x[train_split], y[train_split]
-    val_folder = model_selection.StratifiedKFold(n_splits=5, shuffle=True, random_state=fold_seed)
+    val_folder = model_selection.StratifiedKFold(n_splits=5, shuffle=shuffle, random_state=fold_seed)
     train_split, val_split = list(val_folder.split(train_x, train_y))[0]
     val_x, val_y = train_x[val_split], train_y[val_split]
     train_x, train_y = train_x[train_split], train_y[train_split]
@@ -261,7 +262,8 @@ def load_all_patients(train_transforms=None, test_transforms=None, group_by_pati
                       fold_count=6,
                       extract_filenames=False,
                       exclusion=None,
-                      cell_mask=None):
+                      cell_mask=None,
+                      skew=False):
     """
     Loads all the data from the Duke COVID +/- dataset
     :param group_by_patient: return one entry per patient (bag style), default false
@@ -281,7 +283,8 @@ def load_all_patients(train_transforms=None, test_transforms=None, group_by_pati
     train_orders, train_labels, val_orders, val_labels, test_orders, test_labels = get_strat_fold(orders, labels,
                                                                                                   fold_index=fold_number,
                                                                                                   fold_seed=fold_seed,
-                                                                                                  fold_count=fold_count)
+                                                                                                  fold_count=fold_count,
+                                                                                                  skew=skew)
     if exclusion is not None:
         with open(exclusion) as fp:
             # set to go fast

@@ -50,6 +50,8 @@ misc_arg.add_argument('--test_interval', type=int, default=5,
                       help="How often to evaluate the test set")
 misc_arg.add_argument('--cell_mask', type=str, default=None,
                       help='Mask to apply to cell before loading the image')
+misc_arg.add_argument('--skew', type=str2bool, default=False,
+                      help="Skews training set selection by date")
 
 
 def get_config():

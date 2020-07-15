@@ -26,7 +26,8 @@ def main():
                                                                   batch_size=config.batch_size,
                                                                   fold_number=config.fold_number,
                                                                   exclusion=config.exclusion,
-                                                                  cell_mask=cell_mask)
+                                                                  cell_mask=cell_mask,
+                                                                  skew=config.skew)
         num_classes = 2
     elif config.task == 'wbc-class':
         train_loader, val_loader = load_pbc_data(train_transforms=data_transforms['train'],
