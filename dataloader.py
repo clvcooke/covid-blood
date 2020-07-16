@@ -150,7 +150,7 @@ def get_fold(data, fold_seed=0, fold_index=0, fold_count=6):
 
 def get_control_sample():
     base_path = '/hddraid5/data/colin/covid-data/'
-    if not os.path.exists(base_path):
+    if not os.path.exists(base_path): 
         base_path = '/home/col/covid-data/new_data'
     control_ids = [
     "10050819999",
@@ -198,6 +198,9 @@ def get_patient_orders(exclude_orders=None):
     negative_images = {}
     all_image_paths = glob.glob(os.path.join(base_path, 'COVID Research Images', '**', '*.jpg'),
                                 recursive=True)
+    all_image_paths = [image_path for image_path in all_image_paths if
+                   (os.path.getsize(image_path) < IMAGE_SIZE_CUTOFF_UPPER and os.path.getsize(
+                       image_path) > IMAGE_SIZE_CUTOFF_LOWER)]
     for path in all_image_paths:
         if 'Not WBC' in path:
             raise RuntimeError()
@@ -326,8 +329,9 @@ def load_all_patients(train_transforms=None, test_transforms=None, group_by_pati
                                                                                                   fold_index=fold_number,
                                                                                                   fold_seed=fold_seed,
                                                                                                   fold_count=fold_count)
-    control_orders = get_control_sample()
-    train_orders.update(control_orders)
+    control_data = get_control_sample()
+    control_orders = list(control_data.keys())
+    train_orders = train_orders.tolist() + control_orders
     train_labels += [0]*len(control_orders)
     if exclusion is not None:
         with open(exclusion) as fp:
