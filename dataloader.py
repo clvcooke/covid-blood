@@ -148,8 +148,43 @@ def get_fold(data, fold_seed=0, fold_index=0, fold_count=6):
     return data[split[0]], data[split[1]]
 
 
+def get_control_sample():
+    base_path = '/hddraid5/data/colin/covid-data/'
+    if not os.path.exists(base_path):
+        base_path = '/home/col/covid-data/new_data'
+    control_ids = [
+    "10050819999",
+    "10050936144",
+    "10051030838",
+    "10051031452",
+    "10051045136",
+    "10051055184",
+    "10051065979",
+    "10051182007",
+    "10051195311",
+    "10051195937"]
+    all_image_paths = glob.glob(os.path.join(base_path, 'COVID Research Images', '**', '*.jpg'), recursive=True)
+    control_images = {}
+    for order in tqdm(control_ids):
+        try:
+            np.int(order)
+            label = False
+        except:
+            continue
+        order_paths = [ip for ip in all_image_paths if str(order) in ip]
+        image_paths = [image_path for image_path in order_paths if (os.path.getsize(image_path) < IMAGE_SIZE_CUTOFF_UPPER and os.path.getsize(image_path) > IMAGE_SIZE_CUTOFF_LOWER)]
+        if len(image_paths) == 0:
+            raise RuntimeError()
+        control_images[str(order)] = image_paths
+    total_imgs = sum([len(value) for value in control_images.values()])
+    print(f"Retrieved {len(control_images)} control patients, totaling {total_imgs} images")
+    return control_images
+
+
 def get_patient_orders(exclude_orders=None):
     base_path = '/hddraid5/data/colin/covid-data/'
+    if not os.path.exists(base_path):
+        base_path = '/home/col/covid-data/new_data'
     label_files = glob.glob(os.path.join(base_path, '*Covid*.xlsx'))
     orders = []
     test_results = []
@@ -191,6 +226,15 @@ def get_patient_orders(exclude_orders=None):
     negative_images = dict(sorted(negative_images.items()))
     positive_images = dict(sorted(positive_images.items()))
     all_images = dict(negative_images, **positive_images)
+    neg_pat_count = len(negative_images)
+    pos_pat_count = len(positive_images)
+    neg_cell_count = sum([len(values) for values in negative_images.values()])
+    pos_cell_count = sum([len(values) for values in positive_images.values()])
+
+    print("Data Stats:")
+    print(f"          - {neg_pat_count} negative patients, {pos_pat_count} positive_patients -- {pos_pat_count/(pos_pat_count + neg_pat_count)} positive pat. fraction")
+    print(f"          - {neg_cell_count} negative cells, {pos_cell_count} positive_cells -- {pos_cell_count/(pos_cell_count + neg_cell_count)} positive cell fraction")
+
     return negative_images, positive_images, all_images
 
 
@@ -282,6 +326,9 @@ def load_all_patients(train_transforms=None, test_transforms=None, group_by_pati
                                                                                                   fold_index=fold_number,
                                                                                                   fold_seed=fold_seed,
                                                                                                   fold_count=fold_count)
+    control_orders = get_control_sample()
+    train_orders.update(control_orders)
+    train_labels += [0]*len(control_orders)
     if exclusion is not None:
         with open(exclusion) as fp:
             # set to go fast
