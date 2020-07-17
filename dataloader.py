@@ -149,7 +149,7 @@ def get_fold(data, fold_seed=0, fold_index=0, fold_count=6):
 
 
 def get_control_sample():
-    base_path = '/hddraid5/data/colin/covid-data/'
+    base_path = '/hddraid5/data/colin/covid-data/new_data'
     if not os.path.exists(base_path): 
         base_path = '/home/col/covid-data/new_data'
     control_ids = [
@@ -182,7 +182,7 @@ def get_control_sample():
 
 
 def get_patient_orders(exclude_orders=None):
-    base_path = '/hddraid5/data/colin/covid-data/'
+    base_path = '/hddraid5/data/colin/covid-data/new_data'
     if not os.path.exists(base_path):
         base_path = '/home/col/covid-data/new_data'
     label_files = glob.glob(os.path.join(base_path, '*Covid*.xlsx'))
@@ -330,9 +330,10 @@ def load_all_patients(train_transforms=None, test_transforms=None, group_by_pati
                                                                                                   fold_seed=fold_seed,
                                                                                                   fold_count=fold_count)
     control_data = get_control_sample()
+    all_image_paths.update(control_data)
     control_orders = list(control_data.keys())
     train_orders = train_orders.tolist() + control_orders
-    train_labels += [0]*len(control_orders)
+    train_labels = train_labels.tolist() + [0]*len(control_orders)
     if exclusion is not None:
         with open(exclusion) as fp:
             # set to go fast

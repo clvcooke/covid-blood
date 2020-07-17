@@ -76,7 +76,10 @@ def plot_roc_curve(ground_truth, scores, aggregation_method='mean'):
 
 def save_model(model, model_name, model_dir=None):
     if model_dir is None:
-        model_dir = f"/hddraid5/data/{pwd.getpwuid(os.getuid()).pw_name}/models"
+        base_path = '/hddraid5/data/'
+        if not os.path.exists(base_path):
+            base_path = '/home/'
+        model_dir = f"{base_path}{pwd.getpwuid(os.getuid()).pw_name}/models"
     model_path = os.path.join(model_dir, model_name + '.pth')
     os.makedirs(model_dir, exist_ok=True)
     torch.save(model.state_dict(), model_path)

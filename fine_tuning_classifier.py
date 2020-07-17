@@ -6,6 +6,7 @@ from dataloader import load_all_patients, load_pbc_data
 from models.imagenet import get_model
 from trainer import ClassificationTrainer
 from torch import optim
+import subprocess
 
 wandb.init("covid")
 
@@ -17,7 +18,11 @@ def main():
     """
     config, unparsed = get_config()
     setup_torch(config.random_seed, config.use_gpu, config.gpu_number)
+    process = subprocess.Popen(['git', 'rev-parse', 'HEAD'], shell=False, stdout=subprocess.PIPE)
+    git_head_hash = process.communicate()[0].strip()
+
     wandb.config.update(config)
+    wandb.config['git_hash'] = git_head_hash
     data_transforms = get_covid_transforms(image_size=224)
     cell_mask = config.cell_mask
     if config.task == 'covid-class':
