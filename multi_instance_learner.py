@@ -1,6 +1,6 @@
 from config import get_config
 from torchvision import transforms
-from utils import setup_torch, get_covid_transforms
+from utils import setup_torch, get_covid_transforms, load_model
 import wandb
 from dataloader import load_all_patients, load_pbc_data
 from models.imagenet import get_model
@@ -8,6 +8,7 @@ from models.multi_instance import AttentionModel, GatedAttentionModel
 from trainer import ClassificationTrainer
 from torch import optim
 import warnings
+
 
 wandb.init("covid")
 
@@ -27,7 +28,7 @@ def main():
     data_transforms = get_covid_transforms(image_size=224)
     if config.task != 'covid-class':
         raise RuntimeError("Task not supported")
-    train_loader, val_loader, test_loader = load_all_patients(train_transforms=data_transforms['train'],
+    positive_fraction, train_loader, val_loader, test_loader = load_all_patients(train_transforms=data_transforms['train'],
                                                               test_transforms=data_transforms['val'],
                                                               batch_size=config.batch_size,
                                                               fold_number=config.fold_number,
@@ -37,6 +38,8 @@ def main():
         backbone_name=config.model_name,
         num_classes=2
     )
+    load_model(model, model_id='1otxwcc0', strict=False)
+
     if config.use_gpu:
         model.cuda()
 

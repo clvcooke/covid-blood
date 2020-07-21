@@ -1,6 +1,6 @@
 import json
 import torch
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader, random_split, WeightedRandomSampler
 from torchvision.datasets import ImageFolder
 import numpy as np
 from sklearn import model_selection
@@ -15,6 +15,18 @@ import cv2 as cv
 IMAGE_SIZE_CUTOFF_UPPER = 800000
 # size in bytes
 IMAGE_SIZE_CUTOFF_LOWER = 100
+
+CONTROL_FRACTION_IDS = [
+    "10050819999",
+    "10050936144",
+    "10051030838",
+    "10051031452",
+    "10051045136",
+    "10051055184",
+    "10051065979",
+    "10051182007",
+    "10051195311",
+    "10051195937"]
 
 
 def filter_wbc(path, lower_bound=(0, 100, 0), upper_bound=(204, 255, 127), invert=False):
@@ -150,19 +162,9 @@ def get_fold(data, fold_seed=0, fold_index=0, fold_count=6):
 
 def get_control_sample():
     base_path = '/hddraid5/data/colin/covid-data/new_data'
-    if not os.path.exists(base_path): 
-        base_path = '/home/col/covid-data/new_data'
-    control_ids = [
-    "10050819999",
-    "10050936144",
-    "10051030838",
-    "10051031452",
-    "10051045136",
-    "10051055184",
-    "10051065979",
-    "10051182007",
-    "10051195311",
-    "10051195937"]
+    if not os.path.exists(base_path):
+        base_path = '/home/col/covid-data/july_20'
+    control_ids = CONTROL_FRACTION_IDS
     all_image_paths = glob.glob(os.path.join(base_path, 'COVID Research Images', '**', '*.jpg'), recursive=True)
     control_images = {}
     for order in tqdm(control_ids):
@@ -172,7 +174,9 @@ def get_control_sample():
         except:
             continue
         order_paths = [ip for ip in all_image_paths if str(order) in ip]
-        image_paths = [image_path for image_path in order_paths if (os.path.getsize(image_path) < IMAGE_SIZE_CUTOFF_UPPER and os.path.getsize(image_path) > IMAGE_SIZE_CUTOFF_LOWER)]
+        image_paths = [image_path for image_path in order_paths if (
+                    os.path.getsize(image_path) < IMAGE_SIZE_CUTOFF_UPPER and os.path.getsize(
+                image_path) > IMAGE_SIZE_CUTOFF_LOWER)]
         if len(image_paths) == 0:
             raise RuntimeError()
         control_images[str(order)] = image_paths
@@ -184,7 +188,7 @@ def get_control_sample():
 def get_patient_orders(exclude_orders=None):
     base_path = '/hddraid5/data/colin/covid-data/new_data'
     if not os.path.exists(base_path):
-        base_path = '/home/col/covid-data/new_data'
+        base_path = '/home/col/covid-data/july_20'
     label_files = glob.glob(os.path.join(base_path, '*Covid*.xlsx'))
     orders = []
     test_results = []
@@ -199,8 +203,8 @@ def get_patient_orders(exclude_orders=None):
     all_image_paths = glob.glob(os.path.join(base_path, 'COVID Research Images', '**', '*.jpg'),
                                 recursive=True)
     all_image_paths = [image_path for image_path in all_image_paths if
-                   (os.path.getsize(image_path) < IMAGE_SIZE_CUTOFF_UPPER and os.path.getsize(
-                       image_path) > IMAGE_SIZE_CUTOFF_LOWER)]
+                       (os.path.getsize(image_path) < IMAGE_SIZE_CUTOFF_UPPER and os.path.getsize(
+                           image_path) > IMAGE_SIZE_CUTOFF_LOWER)]
     for path in all_image_paths:
         if 'Not WBC' in path:
             raise RuntimeError()
@@ -235,8 +239,10 @@ def get_patient_orders(exclude_orders=None):
     pos_cell_count = sum([len(values) for values in positive_images.values()])
 
     print("Data Stats:")
-    print(f"          - {neg_pat_count} negative patients, {pos_pat_count} positive_patients -- {pos_pat_count/(pos_pat_count + neg_pat_count)} positive pat. fraction")
-    print(f"          - {neg_cell_count} negative cells, {pos_cell_count} positive_cells -- {pos_cell_count/(pos_cell_count + neg_cell_count)} positive cell fraction")
+    print(
+        f"          - {neg_pat_count} negative patients, {pos_pat_count} positive_patients -- {pos_pat_count / (pos_pat_count + neg_pat_count)} positive pat. fraction")
+    print(
+        f"          - {neg_cell_count} negative cells, {pos_cell_count} positive_cells -- {pos_cell_count / (pos_cell_count + neg_cell_count)} positive cell fraction")
 
     return negative_images, positive_images, all_images
 
@@ -308,7 +314,9 @@ def load_all_patients(train_transforms=None, test_transforms=None, group_by_pati
                       fold_count=6,
                       extract_filenames=False,
                       exclusion=None,
-                      cell_mask=None):
+                      cell_mask=None, weighted_sample=True,
+                      control_weighting=1.0,
+                      include_control=False):
     """
     Loads all the data from the Duke COVID +/- dataset
     :param group_by_patient: return one entry per patient (bag style), default false
@@ -329,11 +337,7 @@ def load_all_patients(train_transforms=None, test_transforms=None, group_by_pati
                                                                                                   fold_index=fold_number,
                                                                                                   fold_seed=fold_seed,
                                                                                                   fold_count=fold_count)
-    control_data = get_control_sample()
-    all_image_paths.update(control_data)
-    control_orders = list(control_data.keys())
-    train_orders = train_orders.tolist() + control_orders
-    train_labels = train_labels.tolist() + [0]*len(control_orders)
+
     if exclusion is not None:
         with open(exclusion) as fp:
             # set to go fast
@@ -351,6 +355,16 @@ def load_all_patients(train_transforms=None, test_transforms=None, group_by_pati
     else:
         train_labels, train_orders, train_files = load_orders(train_orders, all_image_paths, train_labels,
                                                               exclusion=exclusion_set)
+        if include_control:
+            control_data = get_control_sample()
+            all_image_paths.update(control_data)
+            control_orders = list(control_data.keys())
+            control_labels = [0] * len(control_orders)
+            control_labels, control_orders, control_files = load_orders(control_orders, all_image_paths, control_labels,
+                                                                        exclusion=exclusion_set)
+            train_labels = train_labels + control_labels
+            train_orders = train_orders + control_orders
+            train_files = train_files + control_files
         val_labels, val_orders, val_files = load_orders(val_orders, all_image_paths, val_labels,
                                                         exclusion=exclusion_set)
         test_labels, test_orders, test_files = load_orders(test_orders, all_image_paths, test_labels,
@@ -373,44 +387,50 @@ def load_all_patients(train_transforms=None, test_transforms=None, group_by_pati
                                          }, extract_filenames=extract_filenames,
                                          cell_mask=cell_mask)
     # swapping data transforms
-    train_loader = DataLoader(training_dataset, batch_size=batch_size, shuffle=True, pin_memory=True)
+    fraction_positive = np.sum(train_labels) / len(train_labels)
+    if weighted_sample:
+        target = train_labels
+        class_sample_count = np.unique(target, return_counts=True)[1]
+        weight = 1. / class_sample_count
+        samples_weight = weight[target]
+        if include_control:
+            control_weights = np.ones_like(samples_weight)
+            control_weights[-len(control_labels):] *= control_weighting
+            samples_weight = control_weights*samples_weight
+        samples_weight = torch.from_numpy(samples_weight)
+        sampler = WeightedRandomSampler(samples_weight, len(samples_weight))
+        train_loader = DataLoader(training_dataset, batch_size=batch_size, pin_memory=True, sampler=sampler)
+    else:
+        train_loader = DataLoader(training_dataset, batch_size=batch_size, pin_memory=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, pin_memory=True)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, pin_memory=True)
-    return train_loader, val_loader, test_loader
+    return fraction_positive, train_loader, val_loader, test_loader
 
 
 def load_control(transforms, batch_size=8, extract_filenames=False):
-    positive_orders = ["10050549913", "10050639391", "10050638850", "10050669026", "10050672264", "10050708114",
-                       "10050708825", "10050716522", "10050716999", "10050718635", "10050786128", "10050819299",
-                       "10050819876", "10050813540", "10050858192", "10050878757", "10050853158", "10050856321",
-                       "10050866830", "10050891470", "10050890630", "10050893839", "10050898275", "10050902673",
-                       "10050915260", "10050905990", "10050899804", "10050968617", "10050997956", "10050990507",
-                       "10050934966", "10050956238"][-20:]
-    negative_orders = os.listdir("/hddraid5/data/colin/covid-data/control_data/negative/COVID Imaging Negative Controls")
-    negative_orders = [no for no in negative_orders if no.isdigit()]
+    if os.path.exists(('/hddraid5')):
+        control_dir = "/hddraid5/data/colin/covid-data/control_data/negative/COVID Imaging Negative Controls"
+    else:
+        control_dir = '/home/col/covid-data/new_data/COVID Research Images/COVID Imaging Negative Controls'
+    negative_control_orders = os.listdir(control_dir)
+    negative_control_orders = [no for no in negative_control_orders if no.isdigit()]
+    negative_control_orders = [no for no in negative_control_orders if no not in CONTROL_FRACTION_IDS]
     positive_image_paths = {}
-    for order in positive_orders:
-        order_images = glob.glob(f"/hddraid5/data/colin/covid-data/control_data/positive/**/{order}/*.jpg")
-        order_images = [image_path for image_path in order_images if
-                       (os.path.getsize(image_path) < IMAGE_SIZE_CUTOFF_UPPER and os.path.getsize(
-                           image_path) > IMAGE_SIZE_CUTOFF_LOWER)]
-        positive_image_paths[order] = order_images
     negative_image_paths = {}
-    for order in negative_orders:
-        order_images = glob.glob(f"/hddraid5/data/colin/covid-data/control_data/negative/COVID Imaging Negative Controls/{order}/*.jpg")
+    for order in negative_control_orders:
+        order_images = glob.glob(f"{control_dir}/{order}/*.jpg")
         order_images = [image_path for image_path in order_images if
                         (os.path.getsize(image_path) < IMAGE_SIZE_CUTOFF_UPPER and os.path.getsize(
                             image_path) > IMAGE_SIZE_CUTOFF_LOWER)]
         negative_image_paths[order] = order_images
     all_image_paths = dict(negative_image_paths, **positive_image_paths)
     negative_orders = list(negative_image_paths.keys())
-    positive_orders = list(positive_image_paths.keys())
-    orders = negative_orders + positive_orders
-    labels = [0] * len(negative_orders) + [1] * len(positive_orders)
+    orders = negative_orders
+    labels = [0] * len(negative_orders)
     control_labels, control_orders, control_files = load_orders(orders, all_image_paths, labels)
     control_dataset = SingleCellDataset(control_files, control_labels, data_transforms=transforms,
-                                     metadata={
-                                         'orders': control_orders,
-                                     }, extract_filenames=extract_filenames)
-    control_loader = DataLoader(control_dataset, batch_size=batch_size, shuffle=True, pin_memory=True)
+                                        metadata={
+                                            'orders': control_orders,
+                                        }, extract_filenames=extract_filenames)
+    control_loader = DataLoader(control_dataset, batch_size=batch_size, shuffle=False, pin_memory=True)
     return control_loader

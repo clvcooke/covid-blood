@@ -50,6 +50,8 @@ misc_arg.add_argument('--test_interval', type=int, default=5,
                       help="How often to evaluate the test set")
 misc_arg.add_argument('--cell_mask', type=str, default=None,
                       help='Mask to apply to cell before loading the image')
+misc_arg.add_argument('--control_weight', type=float, default=None,
+                      help="How much to weight the included control data")
 
 
 def get_config():

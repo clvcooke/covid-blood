@@ -46,7 +46,7 @@ def predict(model_name, model_path, output_file, continous=False):
         raise RuntimeError("output file already exists, please choose another: " + output_file)
     else:
         os.makedirs(os.path.dirname(output_file), exist_ok=True)
-    setup_torch(0, 1, 3)
+    setup_torch(0, 1, 0)
     image_size = 224
     batch_size = 8
     # first
@@ -56,10 +56,11 @@ def predict(model_name, model_path, output_file, continous=False):
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ])
 
-    train_loader, val_loader, test_loader = load_all_patients(train_transforms=transform,
+    fraction_positive, train_loader, val_loader, test_loader = load_all_patients(train_transforms=transform,
                                                               test_transforms=transform,
                                                               batch_size=batch_size,
-                                                              extract_filenames=True)
+                                                              extract_filenames=True,
+                                                                                 weighted_sample=False)
     num_classes = 9
     model = get_model(model_name=model_name, num_outputs=num_classes)
     load_model(model, model_path)
@@ -83,12 +84,12 @@ def predict(model_name, model_path, output_file, continous=False):
 if __name__ == "__main__":
     username = pwd.getpwuid(os.getuid()).pw_name
     model_id = '1dr34rc5'
-    model_path = f"/hddraid5/data/{username}/models/{model_id}.pth"
+    model_path = f"/home/col/models/{model_id}.pth"
     model_name = 'densenet'
-    continous = True
+    continous = False
     if continous:
         output_file = f'/home/colin/testing/wbc_class_{model_id}_v2_cont.json'
     else:
-        output_file = f'/home/colin/testing/wbc_class_{model_id}_v2.json'
+        output_file = f'/home/col/wbc_class_{model_id}_v2.json'
     assert os.path.splitext(output_file)[1] == '.json'
     predict(model_name=model_name, model_path=model_path, output_file=output_file, continous=continous)

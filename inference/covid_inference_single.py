@@ -9,13 +9,18 @@ from models.imagenet import get_model
 from utils import setup_torch, load_model, get_user, get_covid_transforms
 
 
-def predict(arch_name, model_file, output_file, fold_number):
+
+def predict(arch_name, model_file, output_file, fold_number, TTA=False):
     assert fold_number is not None and 0 <= fold_number < 6, "bad fold"
     # since we can only trust a single fold this is pretty straightforward
     transforms = get_covid_transforms()
     batch_size = 8
+    if TTA:
+        test_transform = transforms['train']
+    else:
+        test_transform = transforms['val']
     train_loader, val_loader, test_loader = load_all_patients(train_transforms=transforms['train'],
-                                                              test_transforms=transforms['val'],
+                                                              test_transforms=test_transform,
                                                               batch_size=batch_size, extract_filenames=True,
                                                               fold_number=fold_number)
     num_classes = 2
@@ -24,7 +29,9 @@ def predict(arch_name, model_file, output_file, fold_number):
     model.cuda()
     # now predict for the test set
     inference_results = {}
-    loaders, loader_names = [train_loader, val_loader, test_loader], ['train_', 'val_', '']
+    # loaders, loader_names = [train_loader, val_loader, test_loader], ['train_', 'val_', '']
+    # let's no longer get all the loaders
+    loaders, loader_names = [test_loader], ['']
     with torch.no_grad():
         for loader, loader_name in zip(loaders, loader_names):
             for (images, filenames), labels in tqdm(loader):
@@ -53,17 +60,20 @@ def predict(arch_name, model_file, output_file, fold_number):
     print("Success")
 
 
-def run_single(model_id, fold, gpu_number):
+def run_single(model_id, fold, gpu_number, TTA=False, TTA_round=0):
     username = get_user()
     setup_torch(0, 1, gpu_number)
     model_path = f"/hddraid5/data/{username}/models/{model_id}.pth"
     if not os.path.exists(model_path):
         model_path = f"/home/{username}/models/{model_id}.pth"
     arch = "densenet"
-    output_path = f"/home/{username}/results_cov/covid_class_v5_{model_id}_fold_{fold}.json"
+    if TTA:
+        output_path = f"/home/{username}/results_cov/covid_class_{model_id}_fold_{fold}_TTA_{TTA_round}.json"
+    else:
+        output_path = f"/home/{username}/results_cov/covid_class_{model_id}_fold_{fold}.json"
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     if os.path.exists(output_path):
         print(f"Model ID {model_id} has already been run")
         return
     assert os.path.splitext(output_path)[1] == '.json'
-    predict(arch, model_path, output_path, fold)
+    predict(arch, model_path, output_path, fold, TTA)
