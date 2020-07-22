@@ -20,6 +20,8 @@ data_arg.add_argument('--batch_size', type=int, default=16,
                       help='# of images in each batch of data')
 data_arg.add_argument('--exclusion', type=str, default=None,
                       help='Path of file containing list of files to exclude')
+data_arg.add_argument('--center_crop', type=int, default=224,
+                      help='Size of the initial center crop to use')
 
 train_arg = add_argument_group('Training Params')
 train_arg.add_argument('--epochs', type=int, default=50,
