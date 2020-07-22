@@ -401,7 +401,7 @@ def load_all_patients(train_transforms=None, test_transforms=None, group_by_pati
         sampler = WeightedRandomSampler(samples_weight, len(samples_weight))
         train_loader = DataLoader(training_dataset, batch_size=batch_size, pin_memory=True, sampler=sampler)
     else:
-        train_loader = DataLoader(training_dataset, batch_size=batch_size, pin_memory=True)
+        train_loader = DataLoader(training_dataset, batch_size=batch_size, pin_memory=True, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, pin_memory=True)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, pin_memory=True)
     return fraction_positive, train_loader, val_loader, test_loader
