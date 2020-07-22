@@ -1,4 +1,5 @@
 from utils import AverageMeter, save_model
+from sklearn.metrics import roc_auc_score
 import numpy as np
 import wandb
 from tqdm import tqdm
@@ -9,12 +10,13 @@ import os
 class ClassificationTrainer:
 
     def __init__(self, model, optimizer, train_loader, val_loader, test_loader=None, test_interval=5, batch_size=8,
-                 epochs=50, patience=10):
+                 epochs=50, patience=10, negative_control=None):
         self.model = model
         self.optimizer = optimizer
         self.train_loader = train_loader
         self.val_loader = val_loader
         self.test_loader = test_loader
+        self.negative_control = negative_control
         self.test_interval = test_interval
         self.batch_size = batch_size
         self.num_train = len(train_loader)
@@ -49,11 +51,14 @@ class ClassificationTrainer:
 
             if self.test_loader is not None and ((epoch % self.test_interval) == 0 or epoch == (self.epochs - 1)):
                 test_loss, test_acc = self.run_one_epoch(training=False, testing=True)
+                test_auc, control_auc = self.get_auc()
                 metrics.update({
                     'test_loss': test_loss,
-                    'test_acc': test_acc
+                    'test_acc': test_acc,
+                    'test_auc': test_auc,
+                    'control_auc': control_auc
                 })
-                msg += f' -- test loss {test_loss:.3f} test acc {test_acc:.3f}'
+                msg += f' -- test loss {test_loss:.3f} test acc {test_acc:.3f} test auc {test_auc:.3f} control auc {control_auc:.3f}'
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
                 msg += '[*]'
@@ -93,7 +98,7 @@ class ClassificationTrainer:
             self.model.eval()
         with tqdm(total=amnt * self.batch_size) as pbar:
             for i, data in enumerate(loader):
-                x, y, = data
+                (x, _), y, = data
                 if self.use_gpu:
                     x, y, = x.cuda(), y.cuda()
                 if training:
@@ -113,3 +118,51 @@ class ClassificationTrainer:
                 pbar.set_description(f" - loss: {losses.avg:.3f} acc {accs.avg:.3f}")
                 pbar.update(self.batch_size)
         return losses.avg, accs.avg
+
+    def get_auc(self):
+        # for every image
+        inference_results = {}
+        with torch.no_grad():
+            for (images, filenames), labels in tqdm(self.test_loader):
+                images = images.cuda()
+                results = self.model(images)
+                preds = torch.nn.functional.softmax(results, dim=-1)[:, 1]
+                preds = preds.tolist()
+                for filename, pred, label in zip(filenames, preds, labels):
+                    order = os.path.basename(filename).split('_')[0]
+                    try:
+                        int(order)
+                    except:
+                        order = os.path.basename(os.path.dirname(filename))
+                        int(order)
+                    if order not in inference_results:
+                        inference_results[order] = {}
+                        inference_results[order]['predictions'] = []
+                        inference_results[order]['label'] = int(label)
+                    inference_results[order]['predictions'].append(pred)
+        control_results = {key: value for key, value in inference_results.items() if value['label'] == 1}
+        with torch.no_grad():
+            for (images, filenames), labels in tqdm(self.negative_control):
+                images = images.cuda()
+                results = self.model(images)
+                preds = torch.nn.functional.softmax(results, dim=-1)[:, 1]
+                preds = preds.tolist()
+                for filename, pred, label in zip(filenames, preds, labels):
+                    order = os.path.basename(filename).split('_')[0]
+                    try:
+                        int(order)
+                    except:
+                        order = os.path.basename(os.path.dirname(filename))
+                        int(order)
+                    if order not in control_results:
+                        control_results[order] = {}
+                        control_results[order]['predictions'] = []
+                        control_results[order]['label'] = int(label)
+                    control_results[order]['predictions'].append(pred)
+        labels = [values['label'] for values in inference_results.values()]
+        predictions = [np.median(values['predictions']) for values in inference_results.values()]
+        control_preds = [np.median(values['predictions']) for values in control_results.values()]
+        control_labels = [values['label'] for values in control_results.values()]
+        test_auc = roc_auc_score(labels, predictions)
+        control_auc = roc_auc_score(control_labels, control_preds)
+        return test_auc, control_auc

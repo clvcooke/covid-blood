@@ -76,18 +76,29 @@ def plot_roc_curve(ground_truth, scores, aggregation_method='mean'):
 
 def save_model(model, model_name, model_dir=None):
     if model_dir is None:
-        model_dir = f"/hddraid5/data/{pwd.getpwuid(os.getuid()).pw_name}/models"
+        base_path = '/hddraid5/data/'
+        if not os.path.exists(base_path):
+            base_path = '/home/'
+        model_dir = f"{base_path}{pwd.getpwuid(os.getuid()).pw_name}/models"
     model_path = os.path.join(model_dir, model_name + '.pth')
     os.makedirs(model_dir, exist_ok=True)
     torch.save(model.state_dict(), model_path)
     print(f"Saved model to {model_path}")
 
 
-def load_model(model, model_path, strict=True):
-    model_state_dict = torch.load(model_path)
+def load_model(model, model_path=None, model_id=None, strict=True):
+    if model_path is not None:
+        model_state_dict = torch.load(model_path)
+    else:
+        assert model_id is not None
+        if os.path.exists('/hddraid5/data'):
+            model_path = f"/hddraid5/data/colin/models/{model_id}.pth"
+        else:
+            model_path = f"/home/col/models/{model_id}.pth"
+        return load_model(model, model_path, strict=strict)
     try:
         model.load_state_dict(model_state_dict, strict=strict)
-    except:
+    except RuntimeError:
         pass
     return model
 
