@@ -161,9 +161,9 @@ def get_fold(data, fold_seed=0, fold_index=0, fold_count=6):
 
 
 def get_control_sample():
-    base_path = '/hddraid5/data/colin/covid-data/new_data'
+    base_path = '/hddraid5/data/colin/covid-data/july_22'
     if not os.path.exists(base_path):
-        base_path = '/home/col/covid-data/july_20'
+        base_path = '/home/col/covid-data/july_22'
     control_ids = CONTROL_FRACTION_IDS
     all_image_paths = glob.glob(os.path.join(base_path, 'COVID Research Images', '**', '*.jpg'), recursive=True)
     control_images = {}
@@ -186,9 +186,9 @@ def get_control_sample():
 
 
 def get_patient_orders(exclude_orders=None):
-    base_path = '/hddraid5/data/colin/covid-data/new_data'
+    base_path = '/hddraid5/data/colin/covid-data/july_22'
     if not os.path.exists(base_path):
-        base_path = '/home/col/covid-data/july_20'
+        base_path = '/home/col/covid-data/july_22'
     label_files = glob.glob(os.path.join(base_path, '*Covid*.xlsx'))
     orders = []
     test_results = []
