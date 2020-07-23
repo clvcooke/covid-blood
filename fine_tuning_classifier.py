@@ -23,7 +23,7 @@ def main():
 
     wandb.config.update(config)
     wandb.config['git_hash'] = git_head_hash
-    data_transforms = get_covid_transforms(image_size=224, center_crop_amount=config.center_crop)
+    data_transforms = get_covid_transforms(image_size=224, center_crop_amount=config.center_crop, center_mask=config.center_mask)
     cell_mask = config.cell_mask
     include_control = config.control_weight is not None
     control_weight = config.control_weight

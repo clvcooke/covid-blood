@@ -22,6 +22,7 @@ data_arg.add_argument('--exclusion', type=str, default=None,
                       help='Path of file containing list of files to exclude')
 data_arg.add_argument('--center_crop', type=int, default=224,
                       help='Size of the initial center crop to use')
+data_arg.add_argument('--center_mask', type=int, default=0)
 
 train_arg = add_argument_group('Training Params')
 train_arg.add_argument('--epochs', type=int, default=50,
