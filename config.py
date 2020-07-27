@@ -58,6 +58,8 @@ misc_arg.add_argument('--cell_mask', type=str, default=None,
                       help='Mask to apply to cell before loading the image')
 misc_arg.add_argument('--control_weight', type=float, default=None,
                       help="How much to weight the included control data")
+misc_arg.add_argument('--experiment_name', type=str, default='default',
+                      help='Name of experiment')
 
 
 def get_config():
