@@ -23,12 +23,13 @@ def main():
 
     wandb.config.update(config)
     wandb.config['git_hash'] = git_head_hash
-    data_transforms = get_covid_transforms(image_size=224)
+    data_transforms = get_covid_transforms(image_size=224, center_crop_amount=config.center_crop,
+                                           center_mask=config.center_mask, resize=config.resize)
     cell_mask = config.cell_mask
     include_control = config.control_weight is not None
     control_weight = config.control_weight
     if config.task == 'covid-class':
-        fraction_positive, train_loader, val_loader, test_loader = load_all_patients(
+        train_loader, val_loader, test_loader = load_all_patients(
             train_transforms=data_transforms['train'],
             test_transforms=data_transforms['val'],
             batch_size=config.batch_size,
@@ -47,7 +48,6 @@ def main():
                                                  batch_size=config.batch_size)
         num_classes = 9
         test_loader = None
-        fraction_positive = None
         negative_control_loader = None
     else:
         raise RuntimeError("Task not supported")
@@ -58,7 +58,7 @@ def main():
     trainer = ClassificationTrainer(model=model, optimizer=optimizer, train_loader=train_loader, val_loader=val_loader,
                                     test_loader=test_loader, test_interval=config.test_interval,
                                     batch_size=config.batch_size, epochs=config.epochs, patience=25,
-                                    negative_control=negative_control_loader)
+                                    negative_control=negative_control_loader, lq_loss=config.lq_loss)
     trainer.train()
 
 

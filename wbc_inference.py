@@ -60,10 +60,10 @@ def predict(model_name, model_path, output_file, continous=False):
                                                               test_transforms=transform,
                                                               batch_size=batch_size,
                                                               extract_filenames=True,
-                                                                                 weighted_sample=False)
-    num_classes = 9
+                                                                 weighted_sample=False)
+    num_classes = 2
     model = get_model(model_name=model_name, num_outputs=num_classes)
-    load_model(model, model_path)
+    load_model(model, model_path, strict=True)
     model.cuda()
     # now run prediction step
     if continous:
@@ -83,13 +83,13 @@ def predict(model_name, model_path, output_file, continous=False):
 
 if __name__ == "__main__":
     username = pwd.getpwuid(os.getuid()).pw_name
-    model_id = '1dr34rc5'
+    model_id = '3bvb2a0f'
     model_path = f"/home/col/models/{model_id}.pth"
     model_name = 'densenet'
     continous = False
     if continous:
         output_file = f'/home/colin/testing/wbc_class_{model_id}_v2_cont.json'
     else:
-        output_file = f'/home/col/wbc_class_{model_id}_v2.json'
+        output_file = f'/home/col/wbc_class_{model_id}_v4.json'
     assert os.path.splitext(output_file)[1] == '.json'
     predict(model_name=model_name, model_path=model_path, output_file=output_file, continous=continous)

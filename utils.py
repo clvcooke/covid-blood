@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import torch
+import numbers
+from PIL import ImageDraw
 import pwd
 
 
@@ -103,10 +105,38 @@ def load_model(model, model_path=None, model_id=None, strict=True):
     return model
 
 
-def get_covid_transforms(image_size=224):
+class CenterMask(object):
+
+    def __init__(self, size):
+        if isinstance(size, numbers.Number):
+            self.size = (int(size), int(size))
+        else:
+            self.size = size
+
+    def __call__(self, img):
+        if self.size[0] == 0:
+            return img
+        x, y = img.size
+        eX, eY = self.size
+        bbox = (x / 2 - eX / 2, y / 2 - eY / 2, x / 2 + eX / 2, y / 2 + eY / 2)
+        draw = ImageDraw.Draw(img)
+        draw.ellipse(bbox, fill=0)
+        del draw
+        return img
+
+
+def get_covid_transforms(image_size=224, center_crop_amount=224, center_mask=16, resize=0):
+    resizing = [
+        transforms.Resize(image_size)
+    ]
+    if resize != 0:
+        resizing.insert(0, transforms.Resize(resize))
+
     data_transforms = {
         'train': transforms.Compose([
-            transforms.CenterCrop(image_size),
+            transforms.CenterCrop(center_crop_amount),
+            CenterMask(center_mask),
+            *resizing,
             transforms.RandomHorizontalFlip(),
             transforms.RandomVerticalFlip(),
             transforms.ColorJitter(brightness=0.10, contrast=0.20, saturation=0.20, hue=0.20),
@@ -115,7 +145,9 @@ def get_covid_transforms(image_size=224):
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ]),
         'val': transforms.Compose([
-            transforms.CenterCrop(image_size),
+            transforms.CenterCrop(center_crop_amount),
+            CenterMask(center_mask),
+            transforms.Resize(image_size),
             transforms.ToTensor(),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ]),

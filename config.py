@@ -20,6 +20,12 @@ data_arg.add_argument('--batch_size', type=int, default=16,
                       help='# of images in each batch of data')
 data_arg.add_argument('--exclusion', type=str, default=None,
                       help='Path of file containing list of files to exclude')
+data_arg.add_argument('--center_crop', type=int, default=224,
+                      help='Size of the initial center crop to use')
+data_arg.add_argument('--center_mask', type=int, default=0,
+                      help='Mask out the center of the image with a black circle')
+data_arg.add_argument('--resize', type=int, default=0,
+                      help='Resize to destroy information')
 
 train_arg = add_argument_group('Training Params')
 train_arg.add_argument('--epochs', type=int, default=50,
@@ -52,6 +58,9 @@ misc_arg.add_argument('--cell_mask', type=str, default=None,
                       help='Mask to apply to cell before loading the image')
 misc_arg.add_argument('--control_weight', type=float, default=None,
                       help="How much to weight the included control data")
+misc_arg.add_argument('--experiment_name', type=str, default='default',
+                      help='Name of experiment')
+misc_arg.add_argument('--lq_loss', type=float, default=None)
 
 
 def get_config():
