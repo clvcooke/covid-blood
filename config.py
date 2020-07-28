@@ -60,6 +60,7 @@ misc_arg.add_argument('--control_weight', type=float, default=None,
                       help="How much to weight the included control data")
 misc_arg.add_argument('--experiment_name', type=str, default='default',
                       help='Name of experiment')
+misc_arg.add_argument('--lq_loss', type=float, default=None)
 
 
 def get_config():

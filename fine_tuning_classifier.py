@@ -59,7 +59,7 @@ def main():
     trainer = ClassificationTrainer(model=model, optimizer=optimizer, train_loader=train_loader, val_loader=val_loader,
                                     test_loader=test_loader, test_interval=config.test_interval,
                                     batch_size=config.batch_size, epochs=config.epochs, patience=25,
-                                    negative_control=negative_control_loader)
+                                    negative_control=negative_control_loader, lq_loss=config.lq_loss)
     trainer.train()
 
 

@@ -1,5 +1,6 @@
 from utils import AverageMeter, save_model
 from sklearn.metrics import roc_auc_score
+import torch.nn.functional as F
 import numpy as np
 import wandb
 from tqdm import tqdm
@@ -10,7 +11,7 @@ import os
 class ClassificationTrainer:
 
     def __init__(self, model, optimizer, train_loader, val_loader, test_loader=None, test_interval=5, batch_size=8,
-                 epochs=50, patience=10, negative_control=None):
+                 epochs=50, patience=10, negative_control=None, lq_loss=None):
         self.model = model
         self.optimizer = optimizer
         self.train_loader = train_loader
@@ -28,9 +29,17 @@ class ClassificationTrainer:
         # TODO: this assumes a global learning rate
         self.lr = self.optimizer.param_groups[0]['lr']
         self.patience = patience
-        self.criterion = torch.nn.CrossEntropyLoss()
+        if lq_loss is None:
+            self.criterion = torch.nn.CrossEntropyLoss()
+        else:
+            self.criterion = lambda y_pred, y_true: self.lq_loss(lq_loss, y_pred, y_true)
         # hack to get the wandb unique ID
         self.run_name = os.path.basename(wandb.run.path)
+
+    @staticmethod
+    def lq_loss(q, y_pred, y_true):
+        y_one_hot = torch.eye(y_pred.shape[-1], dtype=y_pred.dtype, device=y_pred.device)[y_true]
+        return torch.mean(torch.sum((1 - F.softmax(y_pred, 1).pow(q)) * y_one_hot / q, axis=1))
 
     def train(self):
         print(f"\n[*] Train on {self.num_train} samples, validate on {self.num_val} samples")
