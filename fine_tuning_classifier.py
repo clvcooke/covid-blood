@@ -29,7 +29,7 @@ def main():
     include_control = config.control_weight is not None
     control_weight = config.control_weight
     if config.task == 'covid-class':
-        fraction_positive, train_loader, val_loader, test_loader = load_all_patients(
+        train_loader, val_loader, test_loader = load_all_patients(
             train_transforms=data_transforms['train'],
             test_transforms=data_transforms['val'],
             batch_size=config.batch_size,
@@ -48,7 +48,6 @@ def main():
                                                  batch_size=config.batch_size)
         num_classes = 9
         test_loader = None
-        fraction_positive = None
         negative_control_loader = None
     else:
         raise RuntimeError("Task not supported")
