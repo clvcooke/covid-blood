@@ -39,7 +39,7 @@ def main():
             extract_filenames=True,
             include_control=include_control,
             control_weighting=control_weight)
-        num_classes = 2
+        num_classes = 3
         negative_control_loader = load_control(data_transforms['val'], extract_filenames=True, )
 
     elif config.task == 'wbc-class':

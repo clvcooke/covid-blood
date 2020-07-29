@@ -29,6 +29,7 @@ class ClassificationTrainer:
         # TODO: this assumes a global learning rate
         self.lr = self.optimizer.param_groups[0]['lr']
         self.patience = patience
+        self.na_epochs = 5
         if lq_loss is None:
             self.criterion = torch.nn.CrossEntropyLoss()
         else:
@@ -41,12 +42,23 @@ class ClassificationTrainer:
         y_one_hot = torch.eye(y_pred.shape[-1], dtype=y_pred.dtype, device=y_pred.device)[y_true]
         return torch.mean(torch.sum((1 - F.softmax(y_pred, 1).pow(q)) * y_one_hot / q, axis=1))
 
+
+    def absent_loss(self, alpha, y_pred, y_true):
+        # na = Non-Absent
+        na_cross_entropy = F.cross_entropy(y_pred[:,:-1], y_true, reduce=False)
+        probs_na = (1 - F.softmax(y_pred, 1)[:,-1])
+        loss = probs_na*na_cross_entropy - alpha*torch.log(probs_na)
+        return torch.mean(loss)
+
+
     def train(self):
         print(f"\n[*] Train on {self.num_train} samples, validate on {self.num_val} samples")
         best_val_loss = np.inf
         epochs_since_best = 0
         for epoch in range(self.epochs):
             self.curr_epoch = epoch
+            if self.curr_epoch >= self.na_epochs:
+                self.criterion = lambda y_pred, y_true: self.absent_loss(0.5, y_pred, y_true)
             print(f'\nEpoch {epoch}/{self.epochs} -- lr = {self.lr}')
             train_loss, train_acc = self.run_one_epoch(training=True)
             val_loss, val_acc = self.run_one_epoch(training=False)

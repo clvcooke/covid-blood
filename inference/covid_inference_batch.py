@@ -15,6 +15,10 @@ if __name__ == "__main__":
         '3cqyqz7j': 5
     }
 
+    model_info = {
+        '3nlkyl8h': 0
+    }
+
     gpu_number = 1
     counter = 0
     TTA_rounds = 5
