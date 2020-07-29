@@ -61,6 +61,10 @@ misc_arg.add_argument('--control_weight', type=float, default=None,
 misc_arg.add_argument('--experiment_name', type=str, default='default',
                       help='Name of experiment')
 misc_arg.add_argument('--lq_loss', type=float, default=None)
+misc_arg.add_argument('--alpha', type=float, default=None,
+                      help='alpha value for absention loss')
+misc_arg.add_argument('--alpha_warmup', type=int, default=5,
+                      help='Number of epochs to "warm up" on before using absention loss')
 
 
 def get_config():

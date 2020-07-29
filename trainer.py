@@ -11,7 +11,7 @@ import os
 class ClassificationTrainer:
 
     def __init__(self, model, optimizer, train_loader, val_loader, test_loader=None, test_interval=5, batch_size=8,
-                 epochs=50, patience=10, negative_control=None, lq_loss=None):
+                 epochs=50, patience=10, negative_control=None, lq_loss=None, alpha=None, alpha_warmup=5):
         self.model = model
         self.optimizer = optimizer
         self.train_loader = train_loader
@@ -29,10 +29,13 @@ class ClassificationTrainer:
         # TODO: this assumes a global learning rate
         self.lr = self.optimizer.param_groups[0]['lr']
         self.patience = patience
-        self.na_epochs = 5
+        self.na_epochs = alpha_warmup
+        self.alpha = alpha
         if lq_loss is None:
             self.criterion = torch.nn.CrossEntropyLoss()
         else:
+            if self.alpha is not None:
+                raise RuntimeError("Absention and LQ Loss are not compatible")
             self.criterion = lambda y_pred, y_true: self.lq_loss(lq_loss, y_pred, y_true)
         # hack to get the wandb unique ID
         self.run_name = os.path.basename(wandb.run.path)
@@ -57,8 +60,8 @@ class ClassificationTrainer:
         epochs_since_best = 0
         for epoch in range(self.epochs):
             self.curr_epoch = epoch
-            if self.curr_epoch >= self.na_epochs:
-                self.criterion = lambda y_pred, y_true: self.absent_loss(0.5, y_pred, y_true)
+            if self.curr_epoch >= self.na_epochs and self.alpha:
+                self.criterion = lambda y_pred, y_true: self.absent_loss(self.alpha, y_pred, y_true)
             print(f'\nEpoch {epoch}/{self.epochs} -- lr = {self.lr}')
             train_loss, train_acc = self.run_one_epoch(training=True)
             val_loss, val_acc = self.run_one_epoch(training=False)
