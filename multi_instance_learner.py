@@ -4,7 +4,7 @@ from utils import setup_torch, get_covid_transforms, load_model
 import wandb
 from dataloader import load_all_patients, load_pbc_data
 from models.imagenet import get_model
-from models.multi_instance import AttentionModel, GatedAttentionModel
+from models.multi_instance import AttentionModel, GatedAttentionModel, MultiHeadedAttentionModel
 from trainer import ClassificationTrainer
 from torch import optim
 import warnings
@@ -28,17 +28,19 @@ def main():
     data_transforms = get_covid_transforms(image_size=224)
     if config.task != 'covid-class':
         raise RuntimeError("Task not supported")
-    positive_fraction, train_loader, val_loader, test_loader = load_all_patients(train_transforms=data_transforms['train'],
+    train_loader, val_loader, test_loader = load_all_patients(train_transforms=data_transforms['train'],
                                                               test_transforms=data_transforms['val'],
                                                               batch_size=config.batch_size,
                                                               fold_number=config.fold_number,
                                                               exclusion=config.exclusion,
                                                               group_by_patient=True)
-    model = GatedAttentionModel(
+    model = MultiHeadedAttentionModel(
         backbone_name=config.model_name,
-        num_classes=2
+        num_classes=2,
+        num_heads=config.num_heads
     )
-    load_model(model, model_id='1otxwcc0', strict=False)
+    if config.warm_start is not None:
+        load_model(model.backbone, model_id=config.warm_start, strict=False)
 
     if config.use_gpu:
         model.cuda()

@@ -107,7 +107,7 @@ class ClassificationTrainer:
             self.model.eval()
         with tqdm(total=amnt * self.batch_size) as pbar:
             for i, data in enumerate(loader):
-                (x, _), y, = data
+                x, y, = data
                 if self.use_gpu:
                     x, y, = x.cuda(), y.cuda()
                 if training:
@@ -132,46 +132,53 @@ class ClassificationTrainer:
         # for every image
         inference_results = {}
         with torch.no_grad():
-            for (images, filenames), labels in tqdm(self.test_loader):
+            predictions = []
+            all_labels = []
+            for images, labels in tqdm(self.test_loader):
                 images = images.cuda()
                 results = self.model(images)
-                preds = torch.nn.functional.softmax(results, dim=-1)[:, 1]
-                preds = preds.tolist()
-                for filename, pred, label in zip(filenames, preds, labels):
-                    order = os.path.basename(filename).split('_')[0]
-                    try:
-                        int(order)
-                    except:
-                        order = os.path.basename(os.path.dirname(filename))
-                        int(order)
-                    if order not in inference_results:
-                        inference_results[order] = {}
-                        inference_results[order]['predictions'] = []
-                        inference_results[order]['label'] = int(label)
-                    inference_results[order]['predictions'].append(pred)
-        control_results = {key: value for key, value in inference_results.items() if value['label'] == 1}
-        with torch.no_grad():
-            for (images, filenames), labels in tqdm(self.negative_control):
-                images = images.cuda()
-                results = self.model(images)
-                preds = torch.nn.functional.softmax(results, dim=-1)[:, 1]
-                preds = preds.tolist()
-                for filename, pred, label in zip(filenames, preds, labels):
-                    order = os.path.basename(filename).split('_')[0]
-                    try:
-                        int(order)
-                    except:
-                        order = os.path.basename(os.path.dirname(filename))
-                        int(order)
-                    if order not in control_results:
-                        control_results[order] = {}
-                        control_results[order]['predictions'] = []
-                        control_results[order]['label'] = int(label)
-                    control_results[order]['predictions'].append(pred)
-        labels = [values['label'] for values in inference_results.values()]
-        predictions = [np.median(values['predictions']) for values in inference_results.values()]
-        control_preds = [np.median(values['predictions']) for values in control_results.values()]
-        control_labels = [values['label'] for values in control_results.values()]
-        test_auc = roc_auc_score(labels, predictions)
-        control_auc = roc_auc_score(control_labels, control_preds)
-        return test_auc, control_auc
+                preds = torch.nn.functional.softmax(results, dim=-1)[:, 1].tolist()
+                predictions.append(preds)
+                all_labels.append(labels)
+            test_auc = roc_auc_score(all_labels, predictions)
+            return test_auc, 0
+
+        #         preds = preds.tolist()
+        #         for filename, pred, label in zip(filenames, preds, labels):
+        #             order = os.path.basename(filename).split('_')[0]
+        #             try:
+        #                 int(order)
+        #             except:
+        #                 order = os.path.basename(os.path.dirname(filename))
+        #                 int(order)
+        #             if order not in inference_results:
+        #                 inference_results[order] = {}
+        #                 inference_results[order]['predictions'] = []
+        #                 inference_results[order]['label'] = int(label)
+        #             inference_results[order]['predictions'].append(pred)
+        # control_results = {key: value for key, value in inference_results.items() if value['label'] == 1}
+        # with torch.no_grad():
+        #     for (images, filenames), labels in tqdm(self.negative_control):
+        #         images = images.cuda()
+        #         results = self.model(images)
+        #         preds = torch.nn.functional.softmax(results, dim=-1)[:, 1]
+        #         preds = preds.tolist()
+        #         for filename, pred, label in zip(filenames, preds, labels):
+        #             order = os.path.basename(filename).split('_')[0]
+        #             try:
+        #                 int(order)
+        #             except:
+        #                 order = os.path.basename(os.path.dirname(filename))
+        #                 int(order)
+        #             if order not in control_results:
+        #                 control_results[order] = {}
+        #                 control_results[order]['predictions'] = []
+        #                 control_results[order]['label'] = int(label)
+        #             control_results[order]['predictions'].append(pred)
+        # labels = [values['label'] for values in inference_results.values()]
+        # predictions = [np.median(values['predictions']) for values in inference_results.values()]
+        # control_preds = [np.median(values['predictions']) for values in control_results.values()]
+        # control_labels = [values['label'] for values in control_results.values()]
+        # test_auc = roc_auc_score(labels, predictions)
+        # control_auc = roc_auc_score(control_labels, control_preds)
+        # return test_auc, control_auc
