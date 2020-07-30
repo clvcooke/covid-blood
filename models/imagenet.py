@@ -9,7 +9,13 @@ def set_parameter_requires_grad(model, use_pretrained):
 
 
 def get_model(model_name, num_outputs, use_pretrained=False):
-    if model_name == "resnet":
+    if model_name == 'mobilenet':
+        """ MobileNet V2
+        """
+        model_ft = models.mobilenet_v2(pretrained=use_pretrained)
+        set_parameter_requires_grad(model_ft, use_pretrained)
+        model_ft.classifier[1] = nn.Linear(1280, 10)
+    elif model_name == "resnet":
         """ Resnet18
         """
         model_ft = models.resnet18(pretrained=use_pretrained)
