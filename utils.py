@@ -7,6 +7,7 @@ import torch
 import numbers
 from PIL import ImageDraw
 import pwd
+import imgaug.augmenters as iaa
 
 
 class AverageMeter:
@@ -37,7 +38,7 @@ class AverageMeter:
 
 def setup_torch(random_seed, use_gpu, gpu_number=0):
     torch.manual_seed(random_seed)
-    torch.set_num_threads(1)
+    torch.set_num_threads(8)
     if use_gpu:
         os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_number)
         torch.cuda.manual_seed(random_seed)
@@ -123,6 +124,42 @@ class CenterMask(object):
         draw.ellipse(bbox, fill=0)
         del draw
         return img
+
+
+def imgaug_transforms(image_size=224, center_crop_amount=224):
+    HUE = 0
+    SATURATION = 0
+    BRIGHT = 0
+    ROTATION = 45
+    SCALE = 0.00
+    SHEAR = 0
+    BLUR_PROBS = 0.6
+    iaa_transforms_train = iaa.Sequential([
+        iaa.JpegCompression(compression=(0, 30)),
+        iaa.Affine(scale=(1 - SCALE, 1 + SCALE), rotate=(-ROTATION, ROTATION)),
+        iaa.Sometimes(p=BLUR_PROBS, then_list=iaa.imgcorruptlike.DefocusBlur(severity=(1))),
+        iaa.CenterCropToFixedSize(center_crop_amount, center_crop_amount),
+        iaa.HorizontalFlip(0.5),
+        iaa.VerticalFlip(0.5),
+        iaa.AddToBrightness((-BRIGHT, BRIGHT)),
+        iaa.AddToHue((-HUE, HUE)),
+        iaa.AddToSaturation((-SATURATION, SATURATION))]
+    )
+    iaa_transforms_val = iaa.CenterCropToFixedSize(center_crop_amount, center_crop_amount)
+
+    data_transforms = {
+        'train': transforms.Compose([
+            transforms.Lambda(lambda x: iaa_transforms_train.augment(image=x)),
+            transforms.ToTensor(),
+            transforms.Normalize([0.75686275, 0.78588235, 0.87658824], [0.09854594, 0.18088031, 0.13956881])
+        ]),
+        'val': transforms.Compose([
+            transforms.Lambda(lambda x: iaa_transforms_val.augment(image=x)),
+            transforms.ToTensor(),
+            transforms.Normalize([0.75686275, 0.78588235, 0.87658824], [0.09854594, 0.18088031, 0.13956881])
+        ]),
+    }
+    return data_transforms
 
 
 def get_covid_transforms(image_size=224, center_crop_amount=224, center_mask=16, resize=0):

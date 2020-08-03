@@ -52,7 +52,8 @@ class ImageCache:
             if self.cell_mask is not None:
                 im = filter_wbc(path, invert=self.cell_mask == 'nuc')
             else:
-                im = Image.open(path).copy()
+                im = cv.imread(path)
+                # im = Image.open(path).copy()
             self.cached[path] = im
         else:
             return self.cached[path]
@@ -120,7 +121,7 @@ class SingleCellDataset(torch.utils.data.Dataset):
         if self.cache_images:
             image = self.image_cache.get(image_path)
         else:
-            image = Image.open(image_path)
+            image = cv.imread(image_path)
         label = self.image_labels[index]
         if self.data_transforms is not None:
             image = self.data_transforms(image)
@@ -387,7 +388,6 @@ def load_all_patients(train_transforms=None, test_transforms=None, group_by_pati
                                          }, extract_filenames=extract_filenames,
                                          cell_mask=cell_mask)
     # swapping data transforms
-    fraction_positive = np.sum(train_labels) / len(train_labels)
     if weighted_sample:
         target = train_labels
         class_sample_count = np.unique(target, return_counts=True)[1]
@@ -401,7 +401,7 @@ def load_all_patients(train_transforms=None, test_transforms=None, group_by_pati
         sampler = WeightedRandomSampler(samples_weight, len(samples_weight))
         train_loader = DataLoader(training_dataset, batch_size=batch_size, pin_memory=True, sampler=sampler)
     else:
-        train_loader = DataLoader(training_dataset, batch_size=batch_size, pin_memory=True, shuffle=True)
+        train_loader = DataLoader(training_dataset, batch_size=batch_size, pin_memory=True, shuffle=True, num_workers=8)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, pin_memory=True)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, pin_memory=True)
     return train_loader, val_loader, test_loader

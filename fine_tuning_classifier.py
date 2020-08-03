@@ -1,6 +1,6 @@
 from config import get_config
 from torchvision import transforms
-from utils import setup_torch, get_covid_transforms
+from utils import setup_torch, imgaug_transforms
 import wandb
 from dataloader import load_all_patients, load_pbc_data, load_control
 from models.imagenet import get_model
@@ -23,8 +23,7 @@ def main():
 
     wandb.config.update(config)
     wandb.config['git_hash'] = git_head_hash
-    data_transforms = get_covid_transforms(image_size=224, center_crop_amount=config.center_crop,
-                                           center_mask=config.center_mask, resize=config.resize)
+    data_transforms = imgaug_transforms(image_size=224, center_crop_amount=config.center_crop)
     cell_mask = config.cell_mask
     include_control = config.control_weight is not None
     control_weight = config.control_weight
