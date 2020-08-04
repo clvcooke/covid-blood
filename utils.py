@@ -136,20 +136,17 @@ def imgaug_transforms(image_size=224, center_crop_amount=224):
     BLUR_PROBS = 0.6
     iaa_transforms_train = iaa.Sequential([
         iaa.JpegCompression(compression=(0, 30)),
-        iaa.Affine(scale=(1 - SCALE, 1 + SCALE), rotate=(-ROTATION, ROTATION)),
-        iaa.Sometimes(p=BLUR_PROBS, then_list=iaa.imgcorruptlike.DefocusBlur(severity=(1))),
+        iaa.Affine(translate_percent=(0, 0.1), rotate=(-ROTATION, ROTATION)),
+        iaa.GaussianBlur(sigma=(0, 2.0)),
         iaa.CenterCropToFixedSize(center_crop_amount, center_crop_amount),
         iaa.HorizontalFlip(0.5),
-        iaa.VerticalFlip(0.5),
-        iaa.AddToBrightness((-BRIGHT, BRIGHT)),
-        iaa.AddToHue((-HUE, HUE)),
-        iaa.AddToSaturation((-SATURATION, SATURATION))]
+        iaa.VerticalFlip(0.5)]
     )
     iaa_transforms_val = iaa.CenterCropToFixedSize(center_crop_amount, center_crop_amount)
 
     data_transforms = {
         'train': transforms.Compose([
-            transforms.Lambda(lambda x: iaa_transforms_train.augment(image=x)),
+            transforms.Lambda(lambda x: iaa_transforms_train.augment(image=x).copy()),
             transforms.ToTensor(),
             transforms.Normalize([0.75686275, 0.78588235, 0.87658824], [0.09854594, 0.18088031, 0.13956881])
         ]),
