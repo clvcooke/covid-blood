@@ -8,15 +8,13 @@ from trainer import ClassificationTrainer
 from torch import optim
 import subprocess
 
-wandb.init("covid")
 
-
-def main():
+def main(config):
+    wandb.init("covid")
     """
     Train a classifier to detect covid positive vs. negative by fine tuning a pre-trained CNN
     :return:
     """
-    config, unparsed = get_config()
     setup_torch(config.random_seed, config.use_gpu, config.gpu_number)
     process = subprocess.Popen(['git', 'rev-parse', 'HEAD'], shell=False, stdout=subprocess.PIPE)
     git_head_hash = process.communicate()[0].strip()
@@ -62,4 +60,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    arg_config, unparsed = get_config()
+    main(arg_config)
