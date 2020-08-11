@@ -134,20 +134,20 @@ def get_covid_transforms(image_size=224, center_crop_amount=224, center_mask=16,
 
     data_transforms = {
         'train': transforms.Compose([
-            transforms.CenterCrop(center_crop_amount),
-            CenterMask(center_mask),
-            *resizing,
             transforms.RandomHorizontalFlip(),
             transforms.RandomVerticalFlip(),
             transforms.ColorJitter(brightness=0.10, contrast=0.20, saturation=0.20, hue=0.20),
             transforms.RandomAffine(degrees=10, scale=(1.05, 0.95), shear=10),
+            transforms.CenterCrop(center_crop_amount),
+            CenterMask(center_mask),
+            *resizing,
             transforms.ToTensor(),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ]),
         'val': transforms.Compose([
             transforms.CenterCrop(center_crop_amount),
             CenterMask(center_mask),
-            transforms.Resize(image_size),
+            *resizing,
             transforms.ToTensor(),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ]),
