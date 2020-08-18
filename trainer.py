@@ -43,24 +43,32 @@ class ClassificationTrainer:
 
     def train(self):
         print(f"\n[*] Train on {self.num_train} samples, validate on {self.num_val} samples")
-        best_val_loss = np.inf
+        best_val_auc = 0
         epochs_since_best = 0
         for epoch in range(self.epochs):
             self.curr_epoch = epoch
             print(f'\nEpoch {epoch}/{self.epochs} -- lr = {self.lr}')
             train_loss, train_acc = self.run_one_epoch(training=True)
             val_loss, val_acc = self.run_one_epoch(training=False)
-            msg = f'train loss {train_loss:.3f} train acc {train_acc:.3f} -- val loss {val_loss:.3f} val acc {val_acc:.3f}'
+            val_auc = self.get_auc(self.get_inference_results(self.val_loader))
+            msg = f'train loss {train_loss:.3f} train acc {train_acc:.3f} -- val loss {val_loss:.3f} val acc {val_acc:.3f} val auc {val_auc:.3f}'
             metrics = {
                 'train_loss': train_loss,
                 'train_acc': train_acc,
                 'val_loss': val_loss,
-                'val_acc': val_acc
+                'val_acc': val_acc,
+                'val_auc': val_auc
             }
-
-            if self.test_loader is not None and ((epoch % self.test_interval) == 0 or epoch == (self.epochs - 1)):
+            if val_auc > best_val_auc:
+                best_val_auc = val_auc
+                save_model(self.model, self.run_name)
+                epochs_since_best = 0
+            else:
+                epochs_since_best += 1
+            if self.test_loader is not None and (
+                    (epoch % self.test_interval) == 0 or epoch == (self.epochs - 1) or epochs_since_best == 0):
                 test_loss, test_acc = self.run_one_epoch(training=False, testing=True)
-                test_auc, control_auc = self.get_auc()
+                test_auc, control_auc = self.get_test_control_auc()
                 metrics.update({
                     'test_loss': test_loss,
                     'test_acc': test_acc,
@@ -68,14 +76,9 @@ class ClassificationTrainer:
                     'control_auc': control_auc
                 })
                 msg += f' -- test loss {test_loss:.3f} test acc {test_acc:.3f} test auc {test_auc:.3f} control auc {control_auc:.3f}'
-            if val_loss < best_val_loss:
-                best_val_loss = val_loss
+            if epochs_since_best == 0:
                 msg += '[*]'
-                # TODO: implement model saving
-                save_model(self.model, self.run_name)
-                epochs_since_best = 0
-            else:
-                epochs_since_best += 1
+
             print(msg)
 
             wandb.log(metrics, step=epoch)
@@ -128,11 +131,11 @@ class ClassificationTrainer:
                 pbar.update(self.batch_size)
         return losses.avg, accs.avg
 
-    def get_auc(self):
-        # for every image
+    def get_inference_results(self, loader):
         inference_results = {}
+        self.model.eval()
         with torch.no_grad():
-            for (images, filenames), labels in tqdm(self.test_loader):
+            for (images, filenames), labels in tqdm(loader):
                 images = images.cuda()
                 results = self.model(images)
                 preds = torch.nn.functional.softmax(results, dim=-1)[:, 1]
@@ -149,29 +152,21 @@ class ClassificationTrainer:
                         inference_results[order]['predictions'] = []
                         inference_results[order]['label'] = int(label)
                     inference_results[order]['predictions'].append(pred)
-        control_results = {key: value for key, value in inference_results.items() if value['label'] == 1}
-        with torch.no_grad():
-            for (images, filenames), labels in tqdm(self.negative_control):
-                images = images.cuda()
-                results = self.model(images)
-                preds = torch.nn.functional.softmax(results, dim=-1)[:, 1]
-                preds = preds.tolist()
-                for filename, pred, label in zip(filenames, preds, labels):
-                    order = os.path.basename(filename).split('_')[0]
-                    try:
-                        int(order)
-                    except:
-                        order = os.path.basename(os.path.dirname(filename))
-                        int(order)
-                    if order not in control_results:
-                        control_results[order] = {}
-                        control_results[order]['predictions'] = []
-                        control_results[order]['label'] = int(label)
-                    control_results[order]['predictions'].append(pred)
+        return inference_results
+
+    @staticmethod
+    def get_auc(inference_results):
         labels = [values['label'] for values in inference_results.values()]
         predictions = [np.median(values['predictions']) for values in inference_results.values()]
-        control_preds = [np.median(values['predictions']) for values in control_results.values()]
-        control_labels = [values['label'] for values in control_results.values()]
-        test_auc = roc_auc_score(labels, predictions)
-        control_auc = roc_auc_score(control_labels, control_preds)
+        auc = roc_auc_score(labels, predictions)
+        return auc
+
+    def get_test_control_auc(self):
+        # for every image
+        inference_results_test = self.get_inference_results(self.test_loader)
+        inference_results_control = self.get_inference_results(self.negative_control)
+        positive_control_results = {key: value for key, value in inference_results_test.items() if value['label'] == 1}
+        inference_results_control.update(positive_control_results)
+        test_auc = self.get_auc(inference_results_test)
+        control_auc = self.get_auc(inference_results_control)
         return test_auc, control_auc
