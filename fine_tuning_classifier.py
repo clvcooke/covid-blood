@@ -23,7 +23,7 @@ def main():
 
     wandb.config.update(config)
     wandb.config['git_hash'] = git_head_hash
-    data_transforms = get_covid_transforms(image_size=224, center_crop_amount=config.center_crop,
+    data_transforms = get_covid_transforms(image_size=224, center_crop_amount=224,
                                            center_mask=config.center_mask, resize=config.resize)
     cell_mask = config.cell_mask
     include_control = config.control_weight is not None
@@ -57,7 +57,7 @@ def main():
     optimizer = optim.AdamW(model.parameters(), lr=config.init_lr)
     trainer = ClassificationTrainer(model=model, optimizer=optimizer, train_loader=train_loader, val_loader=val_loader,
                                     test_loader=test_loader, test_interval=config.test_interval,
-                                    batch_size=config.batch_size, epochs=config.epochs, patience=25,
+                                    batch_size=config.batch_size, epochs=config.epochs, patience=5,
                                     negative_control=negative_control_loader, lq_loss=config.lq_loss)
     trainer.train()
 
