@@ -130,18 +130,18 @@ class SingleCellDataset(torch.utils.data.Dataset):
             return image, label
 
 
-def get_strat_fold(x, y, fold_seed=0, fold_index=0, fold_count=6):
+def get_strat_fold(x, y, fold_seed=1, fold_index=0, fold_count=6):
     assert fold_index < fold_count
     folder = model_selection.StratifiedKFold(n_splits=fold_count, shuffle=True, random_state=fold_seed)
+    val_folder = model_selection.StratifiedKFold(n_splits=5, shuffle=True, random_state=fold_seed)
     train_split, test_split = list(folder.split(x, y))[fold_index]
     x = np.array(x)
     y = np.array(y)
-    train_x, train_y = x[train_split], y[train_split]
-    val_folder = model_selection.StratifiedKFold(n_splits=5, shuffle=True, random_state=fold_seed)
-    train_split, val_split = list(val_folder.split(train_x, train_y))[0]
-    val_x, val_y = train_x[val_split], train_y[val_split]
-    train_x, train_y = train_x[train_split], train_y[train_split]
+    temp_x, temp_y = x[train_split], y[train_split]
     test_x, test_y = x[test_split], y[test_split]
+    train_split, val_split = list(val_folder.split(temp_x, temp_y))[0]
+    val_x, val_y = temp_x[val_split], temp_y[val_split]
+    train_x, train_y = temp_x[train_split], temp_y[train_split]
     return train_x, train_y, val_x, val_y, test_x, test_y
 
 
@@ -404,6 +404,7 @@ def load_all_patients(train_transforms=None, test_transforms=None, group_by_pati
         train_loader = DataLoader(training_dataset, batch_size=batch_size, pin_memory=True, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, pin_memory=True)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, pin_memory=True)
+
     return train_loader, val_loader, test_loader
 
 
