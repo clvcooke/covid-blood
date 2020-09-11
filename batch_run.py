@@ -14,12 +14,13 @@ def make_config(args):
 
 if __name__ == "__main__":
     procs_per_gpu = 2
-    available_gpus = [0]
-    random_seeds = [0, 1, 2]
-    folds = [0, 1, 2, 3, 4, 5]
+    experiment_name = 'more_aug_0.05_weight_long'
+    available_gpus = [0, 1, 4]
+    random_seeds = [88]
+    folds = [1, 0, 2, 3,4, 5]
     args = {
-        'control_weight': 1.0,
-        'epochs': 100
+        'control_weight': 0.0,
+        'epochs': 300
     }
     all_iteration_args = []
     for fold in folds:
@@ -27,6 +28,7 @@ if __name__ == "__main__":
             run_args = args.copy()
             run_args['fold'] = fold
             run_args['random_seed'] = random_seed
+            run_args['experiment_name'] = experiment_name
             all_iteration_args.append(run_args)
 
     # now we load balance all the runs across all available GPUs

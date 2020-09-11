@@ -37,7 +37,8 @@ def main(config):
             cell_mask=cell_mask,
             extract_filenames=True,
             include_control=include_control,
-            control_weighting=control_weight)
+            control_weighting=control_weight,
+            weighted_sample=True)
         num_classes = 2
         negative_control_loader = load_control(data_transforms['val'], extract_filenames=True, )
 
@@ -56,7 +57,7 @@ def main(config):
     optimizer = optim.AdamW(model.parameters(), lr=config.init_lr)
     trainer = ClassificationTrainer(model=model, optimizer=optimizer, train_loader=train_loader, val_loader=val_loader,
                                     test_loader=test_loader, test_interval=config.test_interval,
-                                    batch_size=config.batch_size, epochs=config.epochs, patience=5,
+                                    batch_size=config.batch_size, epochs=config.epochs, patience=20,
                                     negative_control=negative_control_loader, lq_loss=config.lq_loss)
     trainer.train()
 
