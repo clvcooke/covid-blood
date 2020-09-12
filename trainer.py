@@ -11,9 +11,11 @@ import os
 class ClassificationTrainer:
 
     def __init__(self, model, optimizer, train_loader, val_loader, test_loader=None, test_interval=5, batch_size=8,
-                 epochs=50, patience=10, negative_control=None, lq_loss=None):
+                 epochs=50, patience=10, negative_control=None, lq_loss=None, scheduler=None, schedule_type=None):
         self.model = model
         self.optimizer = optimizer
+        self.scheduler = scheduler
+        self.schedule_type = schedule_type
         self.train_loader = train_loader
         self.val_loader = val_loader
         self.test_loader = test_loader
@@ -25,6 +27,7 @@ class ClassificationTrainer:
         self.num_test = len(test_loader) if test_loader is not None else 0
         self.epochs = epochs
         self.curr_epoch = 0
+        self.step_num = 0
         self.use_gpu = next(self.model.parameters()).is_cuda
         # TODO: this assumes a global learning rate
         self.lr = self.optimizer.param_groups[0]['lr']
@@ -80,13 +83,19 @@ class ClassificationTrainer:
                 msg += '[*]'
 
             print(msg)
+            for param_group in self.optimizer.param_groups:
+                curr_lr = param_group['lr']
+                break
 
+            metrics['curr_lr'] = curr_lr
             wandb.log(metrics, step=epoch)
-            if epochs_since_best > self.patience:
-                epochs_since_best = 0
-                self.lr = self.lr / np.sqrt(10)
-                for param_group in self.optimizer.param_groups:
-                    param_group['lr'] = self.lr
+            if self.schedule_type == 'plateau':
+                self.scheduler.step(val_auc)
+            # if epochs_since_best > self.patience:
+            #     epochs_since_best = 0
+            #     self.lr = self.lr / np.sqrt(10)
+            #     for param_group in self.optimizer.param_groups:
+            #         param_group['lr'] = self.lr
 
     def run_one_epoch(self, training, testing=False):
         losses = AverageMeter()
@@ -119,6 +128,9 @@ class ClassificationTrainer:
                     loss = self.criterion(output, y)
                     loss.backward()
                     self.optimizer.step()
+                    if self.schedule_type == 'cyclic':
+                        self.scheduler.step()
+
                 else:
                     with torch.no_grad():
                         output = self.model(x)

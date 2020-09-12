@@ -399,11 +399,11 @@ def load_all_patients(train_transforms=None, test_transforms=None, group_by_pati
             samples_weight = control_weights*samples_weight
         samples_weight = torch.from_numpy(samples_weight)
         sampler = WeightedRandomSampler(samples_weight, len(samples_weight))
-        train_loader = DataLoader(training_dataset, batch_size=batch_size, pin_memory=True, sampler=sampler)
+        train_loader = DataLoader(training_dataset, batch_size=batch_size, pin_memory=True, sampler=sampler, num_workers=8)
     else:
-        train_loader = DataLoader(training_dataset, batch_size=batch_size, pin_memory=True, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, pin_memory=True)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, pin_memory=True)
+        train_loader = DataLoader(training_dataset, batch_size=batch_size, pin_memory=True, shuffle=True, num_workers=8)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, pin_memory=True, num_workers=8)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, pin_memory=True, num_workers=8)
 
     return train_loader, val_loader, test_loader
 

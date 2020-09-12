@@ -37,7 +37,7 @@ class AverageMeter:
 
 def setup_torch(random_seed, use_gpu, gpu_number=0):
     torch.manual_seed(random_seed)
-    torch.set_num_threads(1)
+    torch.set_num_threads(8)
     if use_gpu:
         os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_number)
         torch.cuda.manual_seed(random_seed)

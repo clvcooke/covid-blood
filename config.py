@@ -62,6 +62,8 @@ def get_parser():
     misc_arg.add_argument('--experiment_name', type=str, default='default',
                           help='Name of experiment')
     misc_arg.add_argument('--lq_loss', type=float, default=None)
+    misc_arg.add_argument('--lr_schedule', type=str, default="plateau",
+                          help='Type of lr schedule to use')
     return parser
 
 

@@ -9,7 +9,6 @@ from torch import optim
 import subprocess
 
 
-
 def main(config):
     wandb.init("covid")
     """
@@ -54,11 +53,20 @@ def main(config):
     model = get_model(model_name=config.model_name, num_outputs=num_classes, use_pretrained=config.pretrained_model)
     if config.use_gpu:
         model.cuda()
-    optimizer = optim.AdamW(model.parameters(), lr=config.init_lr)
+    optimizer = optim.SGD(model.parameters(), lr=config.init_lr, momentum=0.9)
+    if config.lr_schedule == 'plateau':
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=10, mode='max', factor=0.316,
+                                                         verbose=True)
+    elif config.lr_schedule == 'cyclic':
+        scheduler = optim.lr_scheduler.CyclicLR(optimizer, base_lr=0.00001, max_lr=0.1, mode='triangular',
+                                                step_size_up=2000)
+    else:
+        scheduler = None
     trainer = ClassificationTrainer(model=model, optimizer=optimizer, train_loader=train_loader, val_loader=val_loader,
                                     test_loader=test_loader, test_interval=config.test_interval,
-                                    batch_size=config.batch_size, epochs=config.epochs, patience=20,
-                                    negative_control=negative_control_loader, lq_loss=config.lq_loss)
+                                    batch_size=config.batch_size, epochs=config.epochs,
+                                    negative_control=negative_control_loader, lq_loss=config.lq_loss,
+                                    scheduler=scheduler, schedule_type=config.lr_schedule)
     trainer.train()
 
 
