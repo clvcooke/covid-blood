@@ -58,8 +58,8 @@ def main(config):
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=10, mode='max', factor=0.316,
                                                          verbose=True)
     elif config.lr_schedule == 'cyclic':
-        scheduler = optim.lr_scheduler.CyclicLR(optimizer, base_lr=0.00001, max_lr=0.1, mode='triangular',
-                                                step_size_up=2000)
+        scheduler = optim.lr_scheduler.CyclicLR(optimizer, base_lr=0.00001, max_lr=1, mode='triangular',
+                                                step_size_up=4000)
     else:
         scheduler = None
     trainer = ClassificationTrainer(model=model, optimizer=optimizer, train_loader=train_loader, val_loader=val_loader,
