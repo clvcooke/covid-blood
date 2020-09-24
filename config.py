@@ -64,6 +64,8 @@ def get_parser():
     misc_arg.add_argument('--lq_loss', type=float, default=None)
     misc_arg.add_argument('--lr_schedule', type=str, default="plateau",
                           help='Type of lr schedule to use')
+    misc_arg.add_argument('--model_id', type=str, default=None,
+                          help='MIL only: model to use for the warm start')
     return parser
 
 

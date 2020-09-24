@@ -10,15 +10,14 @@ from torch import optim
 import warnings
 
 
-wandb.init("covid")
 
 
-def main():
+def main(config):
     """
     Train a multi-instance classifier to detect covid positive vs. negative
     :return:
     """
-    config, unparsed = get_config()
+    wandb.init("covid")
     # enforce batch_size of 1
     if config.batch_size != 1:
         warnings.warn("Batch size must be one for multi-instance learning, changing batch_size to 1")
@@ -40,17 +39,21 @@ def main():
         backbone_name=config.model_name,
         num_classes=2
     )
-    load_model(model.backbone, model_id='a9wafw6h', strict=True)
+    load_model(model.backbone, model_id=config.model_id, strict=True)
 
     if config.use_gpu:
         model.cuda()
 
-    optimizer = optim.AdamW(model.parameters(), lr=config.init_lr)
+    optimizer = optim.SGD(model.parameters(), lr=config.init_lr, momentum=0.9)
+    scheduler = optim.lr_scheduler.CyclicLR(optimizer, base_lr=0.00001, max_lr=1, mode='triangular',
+                                            step_size_up=100)
     trainer = ClassificationTrainer(model=model, optimizer=optimizer, train_loader=train_loader, val_loader=val_loader,
                                     test_loader=test_loader, test_interval=config.test_interval,
-                                    batch_size=config.batch_size, epochs=config.epochs, patience=15)
+                                    batch_size=config.batch_size, epochs=config.epochs, patience=15, scheduler=scheduler, schedule_type='cyclic')
     trainer.train()
 
 
 if __name__ == "__main__":
-    main()
+    conf, unparsed = get_config()
+
+    main(conf)
