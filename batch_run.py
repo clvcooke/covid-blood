@@ -15,16 +15,17 @@ def make_config(args):
 if __name__ == "__main__":
     procs_per_gpu = 2
     experiment_name = 'more_aug_0.05_weight_long'
-    available_gpus = [0, 1, 4]
-    random_seeds = [88]
+    available_gpus = [0, 1, 2]
+    random_seeds = [0]
     folds = [1, 0, 2, 3,4, 5]
     args = {
-        'control_weight': 0.0,
-        'epochs': 300
+        'control_weight': 1.0,
+        'epochs': 800,
+        'lr_schedule': 'cyclic'
     }
     all_iteration_args = []
-    for fold in folds:
-        for random_seed in random_seeds:
+    for random_seed in random_seeds:
+        for fold in folds:
             run_args = args.copy()
             run_args['fold'] = fold
             run_args['random_seed'] = random_seed
