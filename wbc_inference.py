@@ -2,7 +2,7 @@ import json
 import os
 import pwd
 from torchvision import transforms
-from utils import setup_torch, load_model
+from utils import setup_torch, load_model, get_covid_transforms
 from dataloader import load_all_patients
 from models.imagenet import get_model
 import torch
@@ -37,7 +37,7 @@ def infer_loader_cont(model, loader):
     return inference_results
 
 
-def predict(model_name, model_path, output_file, continous=False):
+def predict(model_name, model_id, output_file, continous=False):
     """
     Process predictions for wbc classification
     :return:
@@ -50,21 +50,25 @@ def predict(model_name, model_path, output_file, continous=False):
     image_size = 224
     batch_size = 8
     # first
-    transform = transforms.Compose([
-        transforms.CenterCrop(image_size),
-        transforms.ToTensor(),
-        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-    ])
+    transform = get_covid_transforms()['val']
+    # transform = transforms.Compose([
+    #     transforms.CenterCrop(image_size),
+    #     transforms.ToTensor(),
+    #     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+    # ])
 
-    fraction_positive, train_loader, val_loader, test_loader = load_all_patients(train_transforms=transform,
-                                                              test_transforms=transform,
-                                                              batch_size=batch_size,
-                                                              extract_filenames=True,
-                                                                 weighted_sample=False)
-    num_classes = 2
+    num_classes = 9
+    # num_classes = 2
     model = get_model(model_name=model_name, num_outputs=num_classes)
-    load_model(model, model_path, strict=True)
+    load_model(model, model_id=model_id, strict=True)
     model.cuda()
+
+
+    train_loader, val_loader, test_loader = load_all_patients(train_transforms=transform,
+                                                                                 test_transforms=transform,
+                                                                                 batch_size=batch_size,
+                                                                                 extract_filenames=True,
+                                                                                 weighted_sample=False)
     # now run prediction step
     if continous:
         infer = infer_loader_cont
@@ -83,13 +87,12 @@ def predict(model_name, model_path, output_file, continous=False):
 
 if __name__ == "__main__":
     username = pwd.getpwuid(os.getuid()).pw_name
-    model_id = '3bvb2a0f'
-    model_path = f"/home/col/models/{model_id}.pth"
+    model_id = 'uf6amfjz'
     model_name = 'densenet'
     continous = False
     if continous:
         output_file = f'/home/colin/testing/wbc_class_{model_id}_v2_cont.json'
     else:
-        output_file = f'/home/col/wbc_class_{model_id}_v4.json'
+        output_file = f'/home/colin/wbc_class_{model_id}_v5.json'
     assert os.path.splitext(output_file)[1] == '.json'
-    predict(model_name=model_name, model_path=model_path, output_file=output_file, continous=continous)
+    predict(model_name=model_name, model_id=model_id, output_file=output_file, continous=continous)

@@ -129,38 +129,20 @@ class ClassificationTrainer:
                     x, y, = x.cuda(), y.cuda()
                 if training:
                     # output is going to be a MIL output and a bunch of SIL outputs
-                    mil_out, sil_out = self.model(x)
-                    # sil_out is non_softmaxed probs
-                    mil_log_probs = torch.log(self.avg_soft(sil_out))
-                    # sil_soft = torch.nn.functional.softmax(sil_out, dim=-1)
-                    # mil_soft = torch.mean(sil_soft, dim=0, keepdim=True)
-                    # mil_log_probs = torch.log(mil_soft)
+                    mil_out = self.model(x)
                     self.optimizer.zero_grad()
-                    ratio = 1.0
-                    simple_mil_loss = simple_loss(mil_log_probs, y)
-                    simple_sil_loss = self.criterion(sil_out, torch.cat([y]*len(sil_out)))
-                    total_loss = ratio*simple_mil_loss + (1-ratio) * simple_sil_loss
+                    total_loss = self.criterion(mil_out, y)
                     total_loss.backward()
-                    # mil_loss = (1-beta)*self.criterion(mil_out, y)
-                    # sil_loss = beta*self.criterion(sil_out, torch.cat([y]*len(sil_out)))
-                    # loss = mil_loss + sil_loss
-                    # simple_mil_loss.backward()
                     self.optimizer.step()
                     if self.schedule_type == 'cyclic':
                         self.scheduler.step()
                 else:
                     with torch.no_grad():
-                        mil_out, sil_out = self.model(x)
-                        sil_soft = torch.nn.functional.softmax(sil_out, dim=-1)
-                        mil_soft = torch.mean(sil_soft, dim=0, keepdim=True)
-                        mil_log_probs = torch.log(mil_soft)
-                        simple_mil_loss = simple_loss(mil_log_probs, y)
-                        # mil_loss = (1 - beta) * self.criterion(mil_out, y)
-                        # sil_loss = beta * self.criterion(sil_out, torch.cat([y] * len(sil_out)))
-                        # loss = mil_loss + sil_loss
+                        mil_out = self.model(x)
+                        total_loss = self.criterion(mil_out, y)
                 _, preds = torch.max(mil_out, 1)
                 acc = torch.sum(preds == y.data).float() / len(y)
-                losses.update(float(simple_mil_loss.data))
+                losses.update(float(total_loss.data))
                 accs.update(float(acc.data))
                 pbar.set_description(f" - loss: {losses.avg:.3f} acc {accs.avg:.3f}")
                 pbar.update(self.batch_size)
@@ -174,16 +156,15 @@ class ClassificationTrainer:
         with torch.no_grad():
             for images, labels in tqdm(loader):
                 images = images.cuda()
-                results_mil, results_sil = self.model(images)
+                mil_out = self.model(images)
+                preds = mil_out[:,1].tolist()
                 rand += 1
-                sil_preds = self.avg_soft(results_sil)[:,1].tolist()
-                assert len(sil_preds) == 1
                 # sil_preds = torch.nn.functional.softmax(results_sil, dim=-1)[:, 1].tolist()
                 # sil_preds = np.median(sil_preds)
                 # mil_preds = torch.nn.functional.softmax(results_mil, dim=-1)[:, 1].tolist()
                 # assert len(mil_preds) == 1
                 # mil_preds = mil_preds[0]
-                preds = sil_preds[0]
+                preds = preds[0]
                 inference_results[str(rand)] = {
                     'predictions': preds,
                     'label': int(labels[0])

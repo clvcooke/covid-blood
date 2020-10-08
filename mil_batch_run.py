@@ -14,7 +14,7 @@ def make_config(args):
 
 if __name__ == "__main__":
     procs_per_gpu = 1
-    experiment_name = 'mil_fine_tune'
+    experiment_name = 'mil_transformer'
 
     available_gpus = [0, 1, 2]
     random_seeds = [0]

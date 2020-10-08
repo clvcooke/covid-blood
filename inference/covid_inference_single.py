@@ -29,9 +29,9 @@ def predict(arch_name, model_file, output_file, fold_number, TTA=False):
     model.cuda()
     # now predict for the test set
     inference_results = {}
-    # loaders, loader_names = [train_loader, val_loader, test_loader], ['train_', 'val_', '']
+    loaders, loader_names = [train_loader, val_loader, test_loader], ['train_', 'val_', '']
     # let's no longer get all the loaders
-    loaders, loader_names = [test_loader], ['']
+    # loaders, loader_names = [test_loader], ['']
     with torch.no_grad():
         for loader, loader_name in zip(loaders, loader_names):
             for (images, filenames), labels in tqdm(loader):
@@ -53,6 +53,10 @@ def predict(arch_name, model_file, output_file, fold_number, TTA=False):
                         inference_results[order][loader_name + 'predictions'] = []
                         inference_results[order][loader_name + 'label'] = int(label)
                         inference_results[order][loader_name + 'files'] = []
+                    if (loader_name + 'predictions') not in inference_results[order]:
+                        print(loader_name)
+                        print(order)
+                        print(inference_results[order])
                     inference_results[order][loader_name + 'predictions'].append(pred)
                     inference_results[order][loader_name + 'files'].append(os.path.basename(filename))
     with open(output_file, 'w') as fp:
@@ -70,7 +74,7 @@ def run_single(model_id, fold, gpu_number, TTA=False, TTA_round=0):
     if TTA:
         output_path = f"/home/{username}/results_cov/covid_class_{model_id}_fold_{fold}_TTA_{TTA_round}.json"
     else:
-        output_path = f"/home/{username}/results_cov/covid_class_{model_id}_fold_{fold}.json"
+        output_path = f"/home/{username}/results_cov/cell_level/covid_class_{model_id}_fold_{fold}.json"
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     if os.path.exists(output_path):
         print(f"Model ID {model_id} has already been run")

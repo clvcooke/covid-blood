@@ -98,10 +98,7 @@ def load_model(model, model_path=None, model_id=None, strict=True):
         else:
             model_path = f"/home/col/models/{model_id}.pth"
         return load_model(model, model_path, strict=strict)
-    try:
-        model.load_state_dict(model_state_dict, strict=strict)
-    except RuntimeError:
-        pass
+    model.load_state_dict(model_state_dict, strict=strict)
     return model
 
 

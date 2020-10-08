@@ -57,6 +57,36 @@ class GatedAttentionModel(nn.Module):
         return classification, sil_classification
 
 
+class TransformerMIL(nn.Module):
+    def __init__(self, backbone_name, instance_hidden_size=32, hidden_size=64, num_classes=2, pretrained_backbone=True):
+        super(TransformerMIL, self).__init__()
+        self.instance_hidden_size = instance_hidden_size
+        self.hidden_size = hidden_size
+        self.num_classes = num_classes
+
+        self.backbone = get_model(backbone_name, 2, pretrained_backbone)
+        N_HEADS = 1
+        D_MODEL = 16
+        for param in self.backbone.classifier.parameters():
+            param.requires_grad = True
+        self.reduction_layer = nn.Sequential(nn.Linear(1024, D_MODEL), nn.ReLU())
+        self.mil_classifier = nn.TransformerEncoder(
+            nn.TransformerEncoderLayer(d_model=D_MODEL, nhead=1, dim_feedforward=D_MODEL), 2)
+        self.classifier_layer = nn.Linear(D_MODEL, 2)
+
+    def forward(self, x):
+        x = x.squeeze(0)
+        features = self.backbone.features(x)
+        out = F.relu(features, inplace=True)
+        out = F.adaptive_avg_pool2d(out, (1, 1))
+        sil_out = torch.flatten(out, 1).view(1, -1, 1024)
+        reduced = self.reduction_layer(sil_out)
+        out = self.mil_classifier(reduced)
+        out_avg = torch.mean(out, dim=1)
+        mil_classification = self.classifier_layer(out_avg)
+        return mil_classification
+
+
 class SimpleMIL(nn.Module):
     def __init__(self, backbone_name, instance_hidden_size=32, hidden_size=64, num_classes=2, pretrained_backbone=True):
         super(SimpleMIL, self).__init__()

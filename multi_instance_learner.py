@@ -4,7 +4,7 @@ from utils import setup_torch, get_covid_transforms, load_model
 import wandb
 from dataloader import load_all_patients, load_pbc_data
 from models.imagenet import get_model
-from models.multi_instance import AttentionModel, GatedAttentionModel, SimpleMIL
+from models.multi_instance import AttentionModel, GatedAttentionModel, SimpleMIL, TransformerMIL
 from mil_trainer import ClassificationTrainer
 from torch import optim
 import warnings
@@ -28,6 +28,12 @@ def main(config):
                                            center_mask=config.center_mask, resize=config.resize)
     if config.task != 'covid-class':
         raise RuntimeError("Task not supported")
+
+    model = TransformerMIL(
+        backbone_name=config.model_name,
+        num_classes=2
+    )
+    load_model(model.backbone, model_id=config.model_id, strict=True)
     train_loader, val_loader, test_loader = load_all_patients(train_transforms=data_transforms['train'],
                                                               test_transforms=data_transforms['val'],
                                                               batch_size=1,
@@ -35,21 +41,15 @@ def main(config):
                                                               exclusion=config.exclusion,
                                                               group_by_patient=True,
                                                               weighted_sample=True)
-    model = SimpleMIL(
-        backbone_name=config.model_name,
-        num_classes=2
-    )
-    load_model(model.backbone, model_id=config.model_id, strict=True)
-
     if config.use_gpu:
         model.cuda()
-
-    optimizer = optim.SGD(model.parameters(), lr=config.init_lr, momentum=0.9)
-    scheduler = optim.lr_scheduler.CyclicLR(optimizer, base_lr=0.00001, max_lr=1, mode='triangular',
-                                            step_size_up=100)
+    optimizer = optim.Adam(model.parameters())
+    # optimizer = optim.SGD(model.parameters(), lr=config.init_lr, momentum=0.9)
+    # scheduler = optim.lr_scheduler.CyclicLR(optimizer, base_lr=0.00001, max_lr=1, mode='triangular',
+    #                                         step_size_up=100)
     trainer = ClassificationTrainer(model=model, optimizer=optimizer, train_loader=train_loader, val_loader=val_loader,
                                     test_loader=test_loader, test_interval=config.test_interval,
-                                    batch_size=config.batch_size, epochs=config.epochs, patience=15, scheduler=scheduler, schedule_type='cyclic')
+                                    batch_size=config.batch_size, epochs=config.epochs, patience=15)
     trainer.train()
 
 

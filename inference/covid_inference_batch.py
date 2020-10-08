@@ -1,23 +1,25 @@
 from inference.covid_inference_single import run_single
 
 if __name__ == "__main__":
-    model_info = {
-        '3dzierwk': 1,
-    }
-
 
     model_info = {
-        '3bcnioqn': 0,
-        '3dzierwk': 1,
-        '1629vjqj': 2,
-        '29tpkvfa': 3,
-        '29psm43i': 4,
-        '3cqyqz7j': 5
+        '1dbrkt2i': 5,
+        '2qyssv3y': 5,
+        '171f08s0': 4,
+        'jup6btte': 4,
+        'z6u8j84u': 3,
+        'jaqln5pf': 3,
+        '1ngmy2jz': 2,
+        '1d3hpvs0': 2,
+        '1abip6we': 0,
+        '3fdw8njf': 0,
+        '3au2k57i': 1,
+        '1l33ib88': 1
     }
 
-    gpu_number = 1
+    gpu_number = 0
     counter = 0
-    TTA_rounds = 5
+    TTA_rounds = 0
     TTA = TTA_rounds > 0
     for model_id, fold_number in model_info.items():
         if TTA:
