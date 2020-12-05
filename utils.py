@@ -5,7 +5,7 @@ import numpy as np
 import os
 import torch
 import numbers
-from PIL import ImageDraw
+from PIL import ImageDraw, Image
 import pwd
 
 
@@ -125,9 +125,32 @@ class CenterMask(object):
         return img
 
 
+class OuterMask(object):
+
+    def __init__(self, size):
+        if isinstance(size, numbers.Number):
+            self.size = (int(size), int(size))
+        else:
+            self.size = size
+
+    def __call__(self, img):
+        if self.size[0] == 0:
+            return img
+        mask = Image.new("L", img.size, (255))
+        comp_1 = Image.new("RGB", img.size, (0, 0, 0))
+        x, y = img.size
+        eX, eY = self.size
+        bbox = (x / 2 - eX / 2, y / 2 - eY / 2, x / 2 + eX / 2, y / 2 + eY / 2)
+        draw = ImageDraw.Draw(mask)
+        draw.ellipse(bbox, fill=0, )
+        img = Image.composite(comp_1, img, mask)
+        del draw
+        del mask
+        del comp_1
+        return img
 
 
-def get_covid_transforms(image_size=224, center_crop_amount=224, center_mask=0, resize=0, zoom=0):
+def get_covid_transforms(image_size=224, center_crop_amount=224, center_mask=0, resize=0, zoom=0, outer_mask=0):
     resizing = [
         transforms.Resize(image_size)
     ]
@@ -141,6 +164,8 @@ def get_covid_transforms(image_size=224, center_crop_amount=224, center_mask=0, 
     masking = []
     if center_mask != 0:
         masking.append(CenterMask(center_mask))
+    if outer_mask != 0:
+        masking.append(OuterMask(outer_mask))
 
     data_transforms = {
         'train': transforms.Compose([

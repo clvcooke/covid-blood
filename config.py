@@ -25,6 +25,8 @@ def get_parser():
                           help='Size of the initial center crop to use')
     data_arg.add_argument('--center_mask', type=int, default=0,
                           help='Mask out the center of the image with a black circle')
+    data_arg.add_argument('--outer_mask', type=int, default=0,
+                          help='Mask out all but the center of the image (radius of the unmasked area)')
     data_arg.add_argument('--resize', type=int, default=0,
                           help='Resize to destroy information')
     data_arg.add_argument('--zoom', type=float, default=0,
