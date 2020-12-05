@@ -27,6 +27,8 @@ def get_parser():
                           help='Mask out the center of the image with a black circle')
     data_arg.add_argument('--resize', type=int, default=0,
                           help='Resize to destroy information')
+    data_arg.add_argument('--zoom', type=float, default=0,
+                          help='Randomly zoom image to remove spatial scale information')
 
     train_arg = parser.add_argument_group('Training Params')
     train_arg.add_argument('--epochs', type=int, default=50,

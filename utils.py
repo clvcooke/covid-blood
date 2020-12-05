@@ -127,12 +127,16 @@ class CenterMask(object):
 
 
 
-def get_covid_transforms(image_size=224, center_crop_amount=224, center_mask=0, resize=0):
+def get_covid_transforms(image_size=224, center_crop_amount=224, center_mask=0, resize=0, zoom=0):
     resizing = [
         transforms.Resize(image_size)
     ]
     if resize != 0:
         resizing.insert(0, transforms.Resize(resize))
+    
+    zooming = []
+    if zoom != 0:
+        zooming.append(transforms.RandomAffine(degrees=0, scale=(1 - zoom, 1 + zoom)))
 
     masking = []
     if center_mask != 0:
@@ -144,6 +148,7 @@ def get_covid_transforms(image_size=224, center_crop_amount=224, center_mask=0, 
             transforms.RandomVerticalFlip(),
             transforms.ColorJitter(brightness=0.05, contrast=0.05, saturation=0.05, hue=0.05),
             transforms.RandomAffine(degrees=45),
+            *zooming,
             transforms.CenterCrop(center_crop_amount),
             *masking,
             *resizing,
@@ -152,6 +157,7 @@ def get_covid_transforms(image_size=224, center_crop_amount=224, center_mask=0, 
         ]),
         'val': transforms.Compose([
             transforms.CenterCrop(center_crop_amount),
+            *zooming,
             *masking,
             *resizing,
             transforms.ToTensor(),
