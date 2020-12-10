@@ -6,6 +6,7 @@ import os
 import torch
 import numbers
 from PIL import ImageDraw, Image
+import cv2 as cv
 import pwd
 
 
@@ -150,13 +151,29 @@ class OuterMask(object):
         return img
 
 
-def get_covid_transforms(image_size=224, center_crop_amount=224, center_mask=0, resize=0, zoom=0, outer_mask=0):
+class NucleusMask(object):
+
+    def __init__(self):
+        pass
+
+    def __call__(self, img):
+        np_img = np.asarray(img).copy()
+        img_hsv = cv.cvtColor(np_img, cv.COLOR_RGB2HSV)
+        _, tt = cv.threshold(img_hsv[:, :, 1], 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU)
+        tt = cv.morphologyEx(tt, cv.MORPH_OPEN, np.ones((5, 5)), iterations=1)
+        tt = cv.morphologyEx(tt, cv.MORPH_CLOSE, np.ones((5, 5)), iterations=1)
+        np_img[tt == 255] = 0
+        im_pil = Image.fromarray(np_img)
+        return im_pil
+
+
+def get_covid_transforms(image_size=224, center_crop_amount=224, center_mask=0, resize=0, zoom=0, outer_mask=0, nucseg=False):
     resizing = [
         transforms.Resize(image_size)
     ]
     if resize != 0:
         resizing.insert(0, transforms.Resize(resize))
-    
+
     zooming = []
     if zoom != 0:
         zooming.append(transforms.RandomAffine(degrees=0, scale=(1 - zoom, 1 + zoom)))
@@ -166,6 +183,9 @@ def get_covid_transforms(image_size=224, center_crop_amount=224, center_mask=0, 
         masking.append(CenterMask(center_mask))
     if outer_mask != 0:
         masking.append(OuterMask(outer_mask))
+    if nucseg:
+        masking.append(NucleusMask())
+
 
     data_transforms = {
         'train': transforms.Compose([
