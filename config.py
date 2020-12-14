@@ -31,7 +31,7 @@ def get_parser():
                           help='Resize to destroy information')
     data_arg.add_argument('--zoom', type=float, default=0,
                           help='Randomly zoom image to remove spatial scale information')
-    data_arg.add_argument('--nucseg', type=bool, default=False,
+    data_arg.add_argument('--nucseg', type=str2bool, default=False,
                           help='Occlude the nucleus (mostly)')
     data_arg.add_argument('--shear', type=int, default=0,
                           help='Amount of random shear to apply')
