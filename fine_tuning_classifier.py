@@ -27,7 +27,8 @@ def main(config):
                                            resize=config.resize,
                                            zoom=config.zoom,
                                            outer_mask=config.outer_mask,
-                                           nucseg=config.nucseg)
+                                           nucseg=config.nucseg,
+                                           shear=config.shear)
     cell_mask = config.cell_mask
     include_control = config.control_weight is not None
     control_weight = config.control_weight

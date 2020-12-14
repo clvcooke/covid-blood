@@ -33,6 +33,8 @@ def get_parser():
                           help='Randomly zoom image to remove spatial scale information')
     data_arg.add_argument('--nucseg', type=bool, default=False,
                           help='Occlude the nucleus (mostly)')
+    data_arg.add_argument('--shear', type=int, default=0,
+                          help='Amount of random shear to apply')
 
     train_arg = parser.add_argument_group('Training Params')
     train_arg.add_argument('--epochs', type=int, default=50,

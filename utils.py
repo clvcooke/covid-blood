@@ -167,7 +167,8 @@ class NucleusMask(object):
         return im_pil
 
 
-def get_covid_transforms(image_size=224, center_crop_amount=224, center_mask=0, resize=0, zoom=0, outer_mask=0, nucseg=False):
+def get_covid_transforms(image_size=224, center_crop_amount=224, center_mask=0, resize=0, zoom=0, outer_mask=0,
+                         nucseg=False, shear=0):
     resizing = [
         transforms.Resize(image_size)
     ]
@@ -177,7 +178,9 @@ def get_covid_transforms(image_size=224, center_crop_amount=224, center_mask=0, 
     zooming = []
     if zoom != 0:
         zooming.append(transforms.RandomAffine(degrees=0, scale=(1 - zoom, 1 + zoom)))
-
+    shearing = []
+    if shear != 0:
+        shearing.append(transforms.RandomAffine(degrees=0, shear=shear))
     masking = []
     if center_mask != 0:
         masking.append(CenterMask(center_mask))
@@ -186,7 +189,6 @@ def get_covid_transforms(image_size=224, center_crop_amount=224, center_mask=0, 
     if nucseg:
         masking.append(NucleusMask())
 
-
     data_transforms = {
         'train': transforms.Compose([
             transforms.RandomHorizontalFlip(),
@@ -194,6 +196,7 @@ def get_covid_transforms(image_size=224, center_crop_amount=224, center_mask=0, 
             transforms.ColorJitter(brightness=0.05, contrast=0.05, saturation=0.05, hue=0.05),
             transforms.RandomAffine(degrees=45),
             *zooming,
+            *shearing,
             transforms.CenterCrop(center_crop_amount),
             *masking,
             *resizing,
@@ -203,6 +206,7 @@ def get_covid_transforms(image_size=224, center_crop_amount=224, center_mask=0, 
         'val': transforms.Compose([
             transforms.CenterCrop(center_crop_amount),
             *zooming,
+            *shearing,
             *masking,
             *resizing,
             transforms.ToTensor(),
