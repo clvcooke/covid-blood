@@ -35,6 +35,12 @@ def get_parser():
                           help='Occlude the nucleus (mostly)')
     data_arg.add_argument('--shear', type=int, default=0,
                           help='Amount of random shear to apply')
+    data_arg.add_argument('--speckle', type=float, default=0,
+                          help='Amount of speckle noise to add')
+    data_arg.add_argument('--saturation', type=float, default=0,
+                          help='Amount of extra saturation jittering')
+    data_arg.add_argument('--hue', type=float, default=0,
+                          help='Amount of extra hue jittering')
 
     train_arg = parser.add_argument_group('Training Params')
     train_arg.add_argument('--epochs', type=int, default=50,

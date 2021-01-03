@@ -21,6 +21,7 @@ def main(config):
 
     wandb.config.update(config)
     wandb.config['git_hash'] = git_head_hash
+    print("NUC SEG: ", config.nucseg)
     data_transforms = get_covid_transforms(image_size=224,
                                            center_crop_amount=224,
                                            center_mask=config.center_mask,
@@ -28,7 +29,10 @@ def main(config):
                                            zoom=config.zoom,
                                            outer_mask=config.outer_mask,
                                            nucseg=config.nucseg,
-                                           shear=config.shear)
+                                           shear=config.shear,
+                                           saturation=config.saturation,
+                                           hue=config.hue,
+                                           speckle=config.speckle)
     cell_mask = config.cell_mask
     include_control = config.control_weight is not None
     control_weight = config.control_weight

@@ -1,4 +1,5 @@
 from sklearn.metrics import roc_auc_score, roc_curve
+from skimage.util import random_noise
 from torchvision import transforms
 import matplotlib.pyplot as plt
 import numpy as np
@@ -166,9 +167,22 @@ class NucleusMask(object):
         im_pil = Image.fromarray(np_img)
         return im_pil
 
+class SpeckleNoise(object):
+
+    def __init__(self, noise_std):
+        self.noise_std = noise_std
+
+    def __call__(self, img)
+        np_img = np.asarray(img).copy()
+        output = random_noise(np_img, mode='speckle', var=self.noise_std)
+        # random noise gives a floating point output
+        output = (output*255).astype(np.uint8)
+        img_pil = Image.fromarray(output)
+        return img_pil
+        
 
 def get_covid_transforms(image_size=224, center_crop_amount=224, center_mask=0, resize=0, zoom=0, outer_mask=0,
-                         nucseg=False, shear=0):
+                         nucseg=False, shear=0, speckle=0, hue=0, saturation=0):
     resizing = [
         transforms.Resize(image_size)
     ]
@@ -188,6 +202,11 @@ def get_covid_transforms(image_size=224, center_crop_amount=224, center_mask=0, 
         masking.append(OuterMask(outer_mask))
     if nucseg:
         masking.append(NucleusMask())
+    point_transforms = []
+    if speckle != 0:
+        point_transforms.append(SpeckleNoise(speckle))
+    if hue != 0 or saturation != 0:
+        point_transforms.append(transforms.ColorJitter(brightness=0, contrast=0, saturation=saturation, hue=hue)
 
     data_transforms = {
         'train': transforms.Compose([
@@ -195,6 +214,7 @@ def get_covid_transforms(image_size=224, center_crop_amount=224, center_mask=0, 
             transforms.RandomVerticalFlip(),
             transforms.ColorJitter(brightness=0.05, contrast=0.05, saturation=0.05, hue=0.05),
             transforms.RandomAffine(degrees=45),
+            *point_transforms,
             *zooming,
             *shearing,
             transforms.CenterCrop(center_crop_amount),
@@ -204,6 +224,7 @@ def get_covid_transforms(image_size=224, center_crop_amount=224, center_mask=0, 
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ]),
         'val': transforms.Compose([
+            *point_transforms,
             *zooming,
             *shearing,
             transforms.CenterCrop(center_crop_amount),
