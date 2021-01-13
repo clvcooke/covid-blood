@@ -39,26 +39,24 @@ class ClassificationTrainer:
         # hack to get the wandb unique ID
         self.run_name = os.path.basename(wandb.run.path)
 
-    @staticmethod
-    def lq_loss(q, y_pred, y_true):
-        y_one_hot = torch.eye(y_pred.shape[-1], dtype=y_pred.dtype, device=y_pred.device)[y_true]
-        return torch.mean(torch.sum((1 - F.softmax(y_pred, 1).pow(q)) * y_one_hot / q, axis=1))
-
     def train(self):
         print(f"\n[*] Train on {self.num_train} samples, validate on {self.num_val} samples")
         best_val_auc = 0
         epochs_since_best = 0
+
+        wandb.watch(self.model)
+
         for epoch in range(self.epochs):
             self.curr_epoch = epoch
             print(f'\nEpoch {epoch}/{self.epochs} -- lr = {self.lr}')
-            train_loss, train_acc = self.run_one_epoch(training=True)
-            val_loss, val_acc = self.run_one_epoch(training=False)
-            val_auc = self.get_auc(self.get_inference_results(self.val_loader))
-            msg = f'train loss {train_loss:.3f} train acc {train_acc:.3f} -- val loss {val_loss:.3f} val acc {val_acc:.3f} val auc {val_auc:.3f}'
+            train_loss, train_acc = self.run_one_epoch(training=True, rounds=10)
+            val_inference_results = self.get_inference_results(self.val_loader)
+            val_acc = self.get_acc(val_inference_results)
+            val_auc = self.get_auc(val_inference_results)
+            msg = f'train loss {train_loss:.3f} train acc {train_acc:.3f} -- val acc {val_acc:.3f} val auc {val_auc:.3f}'
             metrics = {
                 'train_loss': train_loss,
                 'train_acc': train_acc,
-                'val_loss': val_loss,
                 'val_acc': val_acc,
                 'val_auc': val_auc
             }
@@ -83,7 +81,6 @@ class ClassificationTrainer:
                 msg += '[*]'
 
             print(msg)
-
             wandb.log(metrics, step=epoch)
             if self.schedule_type == 'plateau':
                 self.scheduler.step(val_auc)
@@ -100,7 +97,7 @@ class ClassificationTrainer:
         return mil_soft
 
 
-    def run_one_epoch(self, training, testing=False):
+    def run_one_epoch(self, training, testing=False, rounds=1):
         losses = AverageMeter()
         accs = AverageMeter()
         if training:
@@ -121,69 +118,79 @@ class ClassificationTrainer:
             loader = self.val_loader
             self.model.eval()
         beta = self.beta ** self.curr_epoch
-        simple_loss = torch.nn.NLLLoss()
-        with tqdm(total=amnt * self.batch_size) as pbar:
-            for i, data in enumerate(loader):
-                x, y, = data
-                if self.use_gpu:
-                    x, y, = x.cuda(), y.cuda()
-                if training:
-                    # output is going to be a MIL output and a bunch of SIL outputs
-                    mil_out, sil_out = self.model(x)
-                    # sil_out is non_softmaxed probs
-                    mil_log_probs = torch.log(self.avg_soft(sil_out))
-                    # sil_soft = torch.nn.functional.softmax(sil_out, dim=-1)
-                    # mil_soft = torch.mean(sil_soft, dim=0, keepdim=True)
-                    # mil_log_probs = torch.log(mil_soft)
-                    self.optimizer.zero_grad()
-                    ratio = 1.0
-                    simple_mil_loss = simple_loss(mil_log_probs, y)
-                    simple_sil_loss = self.criterion(sil_out, torch.cat([y]*len(sil_out)))
-                    total_loss = ratio*simple_mil_loss + (1-ratio) * simple_sil_loss
-                    total_loss.backward()
-                    # mil_loss = (1-beta)*self.criterion(mil_out, y)
-                    # sil_loss = beta*self.criterion(sil_out, torch.cat([y]*len(sil_out)))
-                    # loss = mil_loss + sil_loss
-                    # simple_mil_loss.backward()
-                    self.optimizer.step()
-                    if self.schedule_type == 'cyclic':
-                        self.scheduler.step()
-                else:
-                    with torch.no_grad():
-                        mil_out, sil_out = self.model(x)
-                        sil_soft = torch.nn.functional.softmax(sil_out, dim=-1)
-                        mil_soft = torch.mean(sil_soft, dim=0, keepdim=True)
-                        mil_log_probs = torch.log(mil_soft)
-                        simple_mil_loss = simple_loss(mil_log_probs, y)
-                        # mil_loss = (1 - beta) * self.criterion(mil_out, y)
-                        # sil_loss = beta * self.criterion(sil_out, torch.cat([y] * len(sil_out)))
-                        # loss = mil_loss + sil_loss
-                _, preds = torch.max(mil_out, 1)
-                acc = torch.sum(preds == y.data).float() / len(y)
-                losses.update(float(simple_mil_loss.data))
-                accs.update(float(acc.data))
-                pbar.set_description(f" - loss: {losses.avg:.3f} acc {accs.avg:.3f}")
-                pbar.update(self.batch_size)
+        simple_loss = torch.nn.CrossEntropyLoss()
+        if testing:
+            accum_amnt = 1
+        else:
+            accum_amnt = 8
+        accum_counter = 0
+        curr_shape = None
+        batch_data = []
+        with tqdm(total=amnt * self.batch_size * rounds) as pbar:
+            for _ in range(rounds):
+                for i, data in enumerate(loader):
+                    x, y, = data
+                    batch_data.append(data)
+                    accum_counter += 1
+                    if accum_counter < accum_amnt:
+                        continue
+                    accum_counter = 0
+                    # now stack if possible
+                    curr_shape = None
+                    x_batched = []
+                    y_batched = []
+                    for x, y in batch_data:
+                        if x.shape != curr_shape:
+                            curr_shape = x.shape
+                            x_batched.append([])
+                            y_batched.append([])
+                        x_batched[-1].append(x)
+                        y_batched[-1].append(y)
+                    x_batched = [torch.stack(xb).squeeze(1) for xb in x_batched]
+                    y_batched = [torch.stack(yb).squeeze(1) for yb in y_batched]
+                    total_loss = 0
+                    total_acc = 0
+                    if training:
+                        self.optimizer.zero_grad()
+                    for x, y in zip(x_batched, y_batched):
+                        if self.use_gpu:
+                            x, y, = x.cuda(), y.cuda()
+                        if training:
+                            # output is going to be a MIL output and a bunch of SIL outputs
+                            mil_out, sil_out = self.model(x)
+                            simple_mil_loss = (simple_loss(mil_out, y) / accum_amnt)*x.shape[0]
+                            simple_mil_loss.backward()
+                            total_loss += float(simple_mil_loss.detach().cpu())
+                        else:
+                            with torch.no_grad():
+                                mil_out, sil_out = self.model(x)
+                                simple_mil_loss = (simple_loss(mil_out, y) / accum_amnt) * x.shape[0]
+                                total_loss += float(simple_mil_loss.detach().cpu())
+                        _, preds = torch.max(mil_out, 1)
+                        with torch.no_grad():
+                            total_acc += float(torch.sum(preds == y.data).float().detach())
+                    if training:
+                        self.optimizer.step()
+                    batch_data = []
+                    acc = total_acc / accum_amnt
+
+                    losses.update(total_loss)
+                    accs.update(acc)
+
+                    pbar.set_description(f" - loss: {losses.avg:.3f} acc {accs.avg:.3f}")
+                    pbar.update(accum_amnt)
         return losses.avg, accs.avg
 
     def get_inference_results(self, loader):
         inference_results = {}
         self.model.eval()
         rand = 0
-        beta = 1.0
         with torch.no_grad():
             for images, labels in tqdm(loader):
                 images = images.cuda()
                 results_mil, results_sil = self.model(images)
                 rand += 1
-                sil_preds = self.avg_soft(results_sil)[:,1].tolist()
-                assert len(sil_preds) == 1
-                # sil_preds = torch.nn.functional.softmax(results_sil, dim=-1)[:, 1].tolist()
-                # sil_preds = np.median(sil_preds)
-                # mil_preds = torch.nn.functional.softmax(results_mil, dim=-1)[:, 1].tolist()
-                # assert len(mil_preds) == 1
-                # mil_preds = mil_preds[0]
-                preds = sil_preds[0]
+                preds = F.softmax(results_mil, dim=1)[0, 1]
                 inference_results[str(rand)] = {
                     'predictions': preds,
                     'label': int(labels[0])
@@ -193,9 +200,16 @@ class ClassificationTrainer:
     @staticmethod
     def get_auc(inference_results):
         labels = [values['label'] for values in inference_results.values()]
-        predictions = [np.median(values['predictions']) for values in inference_results.values()]
+        predictions = [np.median(values['predictions'].cpu().detach().numpy()) for values in inference_results.values()]
         auc = roc_auc_score(labels, predictions)
         return auc
+
+    @staticmethod
+    def get_acc(inference_results):
+        labels = [values['label'] for values in inference_results.values()]
+        predictions = [np.median(values['predictions'].cpu().detach().numpy()) for values in inference_results.values()]
+        acc = np.sum(np.round(predictions) == labels) / len(labels)
+        return acc
 
     def get_test_control_auc(self):
         # for every image

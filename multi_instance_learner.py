@@ -24,8 +24,7 @@ def main(config):
         config.batch_size = 1
     setup_torch(config.random_seed, config.use_gpu, config.gpu_number)
     wandb.config.update(config)
-    data_transforms = get_covid_transforms(image_size=224, center_crop_amount=224,
-                                           center_mask=config.center_mask, resize=config.resize)
+    data_transforms = get_covid_transforms(image_size=224, center_crop_amount=224)
     if config.task != 'covid-class':
         raise RuntimeError("Task not supported")
     train_loader, val_loader, test_loader = load_all_patients(train_transforms=data_transforms['train'],
@@ -37,19 +36,18 @@ def main(config):
                                                               weighted_sample=True)
     model = SimpleMIL(
         backbone_name=config.model_name,
-        num_classes=2
+        num_classes=2,
+        pretrained_backbone=False,
+        instance_hidden_size=1024,
+        hidden_size=1024
     )
-    load_model(model.backbone, model_id=config.model_id, strict=True)
 
     if config.use_gpu:
         model.cuda()
-
-    optimizer = optim.SGD(model.parameters(), lr=config.init_lr, momentum=0.9)
-    scheduler = optim.lr_scheduler.CyclicLR(optimizer, base_lr=0.00001, max_lr=1, mode='triangular',
-                                            step_size_up=100)
+    optimizer = optim.Adam(model.parameters(), lr=config.init_lr)
     trainer = ClassificationTrainer(model=model, optimizer=optimizer, train_loader=train_loader, val_loader=val_loader,
                                     test_loader=test_loader, test_interval=config.test_interval,
-                                    batch_size=config.batch_size, epochs=config.epochs, patience=15, scheduler=scheduler, schedule_type='cyclic')
+                                    batch_size=config.batch_size, epochs=config.epochs, patience=15, scheduler=None)
     trainer.train()
 
 

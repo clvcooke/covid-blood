@@ -15,14 +15,19 @@ def get_model(model_name, num_outputs, use_pretrained=False):
         model_ft = models.mobilenet_v2(pretrained=use_pretrained)
         set_parameter_requires_grad(model_ft, use_pretrained)
         model_ft.classifier[1] = nn.Linear(1280, 10)
-    elif model_name == "resnet":
+    elif model_name == "resnet18":
         """ Resnet18
         """
         model_ft = models.resnet18(pretrained=use_pretrained)
         set_parameter_requires_grad(model_ft, use_pretrained)
         num_ftrs = model_ft.fc.in_features
         model_ft.fc = nn.Linear(num_ftrs, num_outputs)
-
+    elif model_name == 'resnet50':
+        """Resnet50"""
+        model_ft = models.resnet50(pretrained=use_pretrained)
+        set_parameter_requires_grad(model_ft, use_pretrained)
+        num_ftrs = model_ft.fc.in_features
+        model_ft.fc = nn.Linear(num_ftrs, num_outputs)
     elif model_name == "alexnet":
         """ Alexnet
         """
@@ -30,7 +35,6 @@ def get_model(model_name, num_outputs, use_pretrained=False):
         set_parameter_requires_grad(model_ft, use_pretrained)
         num_ftrs = model_ft.classifier[6].in_features
         model_ft.classifier[6] = nn.Linear(num_ftrs, num_outputs)
-
     elif model_name == "vgg":
         """ VGG11_bn
         """

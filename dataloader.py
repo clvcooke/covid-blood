@@ -81,6 +81,7 @@ class BagDataset(torch.utils.data.Dataset):
         if torch.is_tensor(index):
             index = index.tolist()
         image_paths = self.bags[index]['files']
+        image_paths = np.random.choice(image_paths, min(10, len(image_paths)), replace=False)
         label = self.bags[index]['label']
         if self.cache_images:
             images = [self.image_cache.get(image_path) for image_path in image_paths]
@@ -326,7 +327,26 @@ def load_all_patients(train_transforms=None, test_transforms=None, group_by_pati
     :param fold_count: number of folds to use, validation split = 1/fold_count
     :return: iterable dataset objects for training and validation
     """
-    negative_image_paths, positive_image_paths, all_image_paths = get_patient_orders()
+    cache_path = '/home/colin/cache/orders.pkl'
+    import pickle
+    if os.path.exists(cache_path):
+        print("reading cache")
+        with open(cache_path, 'rb') as fp:
+            cache = pickle.load(fp)
+            negative_image_paths = cache['neg_paths']
+            positive_image_paths = cache['pos_paths']
+            all_image_paths = cache['all_paths']
+    else:
+        print("No cache available")
+        negative_image_paths, positive_image_paths, all_image_paths = get_patient_orders()
+        data = {
+            'neg_paths': negative_image_paths,
+            'pos_paths': positive_image_paths,
+            'all_paths': all_image_paths
+        }
+        os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+        with open(cache_path, 'wb') as fp:
+            pickle.dump(data, fp)
     negative_orders = list(negative_image_paths.keys())
     positive_orders = list(positive_image_paths.keys())
     orders = negative_orders + positive_orders
@@ -388,6 +408,7 @@ def load_all_patients(train_transforms=None, test_transforms=None, group_by_pati
                                          cell_mask=cell_mask)
     # swapping data transforms
     fraction_positive = np.sum(train_labels) / len(train_labels)
+    num_workers = 0
     if weighted_sample:
         target = train_labels
         class_sample_count = np.unique(target, return_counts=True)[1]
@@ -399,11 +420,11 @@ def load_all_patients(train_transforms=None, test_transforms=None, group_by_pati
             samples_weight = control_weights*samples_weight
         samples_weight = torch.from_numpy(samples_weight)
         sampler = WeightedRandomSampler(samples_weight, len(samples_weight))
-        train_loader = DataLoader(training_dataset, batch_size=batch_size, pin_memory=True, sampler=sampler, num_workers=8)
+        train_loader = DataLoader(training_dataset, batch_size=batch_size, pin_memory=True, sampler=sampler, num_workers=num_workers)
     else:
-        train_loader = DataLoader(training_dataset, batch_size=batch_size, pin_memory=True, shuffle=True, num_workers=8)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, pin_memory=True, num_workers=8)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, pin_memory=True, num_workers=8)
+        train_loader = DataLoader(training_dataset, batch_size=batch_size, pin_memory=True, shuffle=True, num_workers=num_workers)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, pin_memory=True, num_workers=num_workers)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, pin_memory=True, num_workers=num_workers)
 
     return train_loader, val_loader, test_loader
 

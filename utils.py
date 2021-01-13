@@ -167,19 +167,31 @@ class NucleusMask(object):
         im_pil = Image.fromarray(np_img)
         return im_pil
 
+
 class SpeckleNoise(object):
 
     def __init__(self, noise_std):
         self.noise_std = noise_std
 
-    def __call__(self, img)
+    def __call__(self, img):
         np_img = np.asarray(img).copy()
         output = random_noise(np_img, mode='speckle', var=self.noise_std)
         # random noise gives a floating point output
-        output = (output*255).astype(np.uint8)
+        output = (output * 255).astype(np.uint8)
         img_pil = Image.fromarray(output)
         return img_pil
-        
+
+
+class BlankImage(object):
+    def __init__(self, blank_value, probs = 0.3):
+        self.blank_value = blank_value
+        self.probs = probs
+
+    def __call__(self, img):
+        if np.random.random() < self.probs:
+            blank = torch.ones_like(img)*self.blank_value
+            return blank
+        return img
 
 def get_covid_transforms(image_size=224, center_crop_amount=224, center_mask=0, resize=0, zoom=0, outer_mask=0,
                          nucseg=False, shear=0, speckle=0, hue=0, saturation=0):
@@ -206,8 +218,9 @@ def get_covid_transforms(image_size=224, center_crop_amount=224, center_mask=0, 
     if speckle != 0:
         point_transforms.append(SpeckleNoise(speckle))
     if hue != 0 or saturation != 0:
-        point_transforms.append(transforms.ColorJitter(brightness=0, contrast=0, saturation=saturation, hue=hue)
+        point_transforms.append(transforms.ColorJitter(brightness=0, contrast=0, saturation=saturation, hue=hue))
 
+    print("0.5 blank")
     data_transforms = {
         'train': transforms.Compose([
             transforms.RandomHorizontalFlip(),
@@ -221,7 +234,8 @@ def get_covid_transforms(image_size=224, center_crop_amount=224, center_mask=0, 
             *masking,
             *resizing,
             transforms.ToTensor(),
-            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+            # BlankImage(probs=0.5, blank_value=0)
         ]),
         'val': transforms.Compose([
             *point_transforms,
