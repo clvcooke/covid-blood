@@ -65,6 +65,7 @@ def get_parser():
                           help="Whether to run on the GPU")
     misc_arg.add_argument('--gpu_number', type=int, default=0,
                           help="Which GPU to use")
+    misc_arg.add_argument('--mil_size', type=int, default=10)
     misc_arg.add_argument('--task', type=str, default='covid-class',
                           help='Which task to launch')
     misc_arg.add_argument('--test_interval', type=int, default=5,
@@ -76,7 +77,7 @@ def get_parser():
     misc_arg.add_argument('--experiment_name', type=str, default='default',
                           help='Name of experiment')
     misc_arg.add_argument('--lq_loss', type=float, default=None)
-    misc_arg.add_argument('--lr_schedule', type=str, default="plateau",
+    misc_arg.add_argument('--lr_schedule', type=str, default=None,
                           help='Type of lr schedule to use')
     misc_arg.add_argument('--model_id', type=str, default=None,
                           help='MIL only: model to use for the warm start')

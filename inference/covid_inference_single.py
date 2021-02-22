@@ -14,7 +14,7 @@ def predict(arch_name, model_file, output_file, fold_number, TTA=False):
     assert fold_number is not None and 0 <= fold_number < 6, "bad fold"
     # since we can only trust a single fold this is pretty straightforward
     transforms = get_covid_transforms()
-    batch_size = 8
+    batch_size = 1
     if TTA:
         test_transform = transforms['train']
     else:
@@ -48,6 +48,8 @@ def predict(arch_name, model_file, output_file, fold_number, TTA=False):
                         order = os.path.basename(os.path.dirname(filename))
                         int(order)
                         print("new order", order)
+                    if order == '10051879530':
+                        print("HERE")
                     if order not in inference_results:
                         inference_results[order] = {}
                         inference_results[order][loader_name + 'predictions'] = []

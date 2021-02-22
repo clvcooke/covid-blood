@@ -60,7 +60,7 @@ class ImageCache:
 
 
 class BagDataset(torch.utils.data.Dataset):
-    def __init__(self, bags, data_transforms=None, metadata=None, cache_images=True, cell_mask=None):
+    def __init__(self, bags, data_transforms=None, metadata=None, cache_images=True, cell_mask=None, random_sample=True, extract_filenames=False, mil_size=10):
         """
 
         :param bags: list of dicts containing paths/labels/orders
@@ -71,6 +71,9 @@ class BagDataset(torch.utils.data.Dataset):
         self.metadata = metadata
         self.data_transforms = data_transforms
         self.cache_images = cache_images
+        self.random_sample = random_sample
+        self.extract_filenames = extract_filenames
+        self.mil_size = mil_size
         if self.cache_images:
             self.image_cache = ImageCache(cell_mask=cell_mask)
 
@@ -81,14 +84,18 @@ class BagDataset(torch.utils.data.Dataset):
         if torch.is_tensor(index):
             index = index.tolist()
         image_paths = self.bags[index]['files']
-        image_paths = np.random.choice(image_paths, min(10, len(image_paths)), replace=False)
+        if self.random_sample:
+            image_paths = np.random.choice(image_paths, min(self.mil_size, len(image_paths)), replace=False)
         label = self.bags[index]['label']
         if self.cache_images:
             images = [self.image_cache.get(image_path) for image_path in image_paths]
         else:
             images = [Image.open(image_path) for image_path in image_paths]
         transformed_images = torch.stack([self.data_transforms(image) for image in images])
-        return transformed_images, label
+        if self.extract_filenames:
+            return (image_paths, transformed_images), label
+        else:
+            return transformed_images, label
 
 
 class SingleCellDataset(torch.utils.data.Dataset):
@@ -317,7 +324,8 @@ def load_all_patients(train_transforms=None, test_transforms=None, group_by_pati
                       exclusion=None,
                       cell_mask=None, weighted_sample=True,
                       control_weighting=1.0,
-                      include_control=False):
+                      include_control=False,
+                      random_sample=True, mil_size=None):
     """
     Loads all the data from the Duke COVID +/- dataset
     :param group_by_patient: return one entry per patient (bag style), default false
@@ -357,7 +365,9 @@ def load_all_patients(train_transforms=None, test_transforms=None, group_by_pati
                                                                                                   fold_index=fold_number,
                                                                                                   fold_seed=fold_seed,
                                                                                                   fold_count=fold_count)
-
+    print('TRAIN', '10051879530' in train_orders)
+    print("VAL", '10051879530' in val_orders)
+    print("TEST", '10051879530' in test_orders)
     if exclusion is not None:
         with open(exclusion) as fp:
             # set to go fast
@@ -369,9 +379,9 @@ def load_all_patients(train_transforms=None, test_transforms=None, group_by_pati
         train_bags = load_orders_into_bags(train_orders, all_image_paths, train_labels, exclusion=exclusion_set)
         val_bags = load_orders_into_bags(val_orders, all_image_paths, val_labels, exclusion=exclusion_set)
         test_bags = load_orders_into_bags(test_orders, all_image_paths, test_labels, exclusion=exclusion_set)
-        training_dataset = BagDataset(train_bags, data_transforms=train_transforms)
-        val_dataset = BagDataset(val_bags, data_transforms=test_transforms)
-        test_dataset = BagDataset(test_bags, data_transforms=test_transforms)
+        training_dataset = BagDataset(train_bags, data_transforms=train_transforms, random_sample=random_sample, extract_filenames=extract_filenames, mil_size=mil_size)
+        val_dataset = BagDataset(val_bags, data_transforms=test_transforms, random_sample=random_sample, extract_filenames=extract_filenames)
+        test_dataset = BagDataset(test_bags, data_transforms=test_transforms, random_sample=random_sample, extract_filenames=extract_filenames)
     else:
         train_labels, train_orders, train_files = load_orders(train_orders, all_image_paths, train_labels,
                                                               exclusion=exclusion_set)

@@ -14,71 +14,24 @@ def make_config(args):
 
 if __name__ == "__main__":
     procs_per_gpu = 1
-    experiment_name = 'mil_fine_tune'
-
-    available_gpus = [0, 1, 2]
-    random_seeds = [0]
-    mil_info = [
-        {
-            'fold': 0,
-            'model_id': '3fdw8njf'
-        },
-        {
-            'fold': 1,
-            'model_id': '1l33ib88'
-        },
-        {
-            'fold': 2,
-            'model_id': '1d3hpvs0'
-        },
-        {
-            'fold': 3,
-            'model_id': 'jaqln5pf'
-        },
-        {
-            'fold': 4,
-            'model_id': '1wo44ahr'
-        },
-        {
-            'fold': 5,
-            'model_id': 'h4zoe30l'
-        },
-        {
-            'fold': 0,
-            'model_id': '1fd629ti'
-        },
-        {
-            'fold': 1,
-            'model_id': '1dfzl3zj'
-        },
-        {
-            'fold': 2,
-            'model_id': '1riklbmy'
-        },
-        {
-            'fold': 3,
-            'model_id': '36ck8xim'
-        },
-        {
-            'fold': 4,
-            'model_id': 'jup6btte'
-        },
-        {
-            'fold': 5,
-            'model_id': '2qyssv3y'
-        }
-
-    ]
+    experiment_name = 'mil_batch'
+    available_gpus = [3]
+    random_seeds = [100, 200, 300]
+    folds = [1, 0, 2, 3, 4, 5]
     args = {
         'control_weight': 1.0,
-        'epochs': 150,
-        'lr_schedule': 'cyclic'
+        'epochs': 350,
+        'init_lr': 3e-5,
+        'lr_schedule': 'standard',
+        'batch_size': 1,
+        'mil_size': 32,
+        'model_name': 'resnet50'
     }
     all_iteration_args = []
     for random_seed in random_seeds:
-        for conf in mil_info:
+        for fold in folds:
             run_args = args.copy()
-            run_args.update(conf)
+            run_args['fold'] = fold
             run_args['random_seed'] = random_seed
             run_args['experiment_name'] = experiment_name
             all_iteration_args.append(run_args)

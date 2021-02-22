@@ -33,7 +33,8 @@ def main(config):
                                                               fold_number=config.fold_number,
                                                               exclusion=config.exclusion,
                                                               group_by_patient=True,
-                                                              weighted_sample=True)
+                                                              weighted_sample=True,
+                                                              mil_size=config.mil_size)
     model = SimpleMIL(
         backbone_name=config.model_name,
         num_classes=2,
@@ -44,10 +45,25 @@ def main(config):
 
     if config.use_gpu:
         model.cuda()
-    optimizer = optim.Adam(model.parameters(), lr=config.init_lr)
+   
+
+    if config.lr_schedule == 'plateau':
+        optimizer = optim.SGD(model.parameters(), lr=config.init_lr, momentum=0.9)
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=10, mode='max', factor=0.316,
+                                                         verbose=True)
+    elif config.lr_schedule == 'cyclic':
+        optimizer = optim.SGD(model.parameters(), lr=config.init_lr, momentum=0.9)
+        scheduler = optim.lr_scheduler.CyclicLR(optimizer, base_lr=0.0000001, max_lr=0.001, mode='triangular',
+                                                step_size_up=2000)
+        # scheduler = optim.lr_scheduler.CyclicLR(optimizer, base_lr=1e-5, max_lr=3e-1, mode='triangular',
+        #                                        step_size_up=2000)
+    else:
+        scheduler = None
+        optimizer = optim.AdamW(model.parameters(), lr=config.init_lr)
+ 
     trainer = ClassificationTrainer(model=model, optimizer=optimizer, train_loader=train_loader, val_loader=val_loader,
                                     test_loader=test_loader, test_interval=config.test_interval,
-                                    batch_size=config.batch_size, epochs=config.epochs, patience=15, scheduler=None)
+                                    batch_size=config.batch_size, epochs=config.epochs, patience=15, scheduler=scheduler, schedule_type=config.lr_schedule)
     trainer.train()
 
 

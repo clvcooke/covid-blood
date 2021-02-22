@@ -13,10 +13,10 @@ def make_config(args):
 
 
 if __name__ == "__main__":
-    procs_per_gpu = 2
-    experiment_name = 'more_aug_0.05_weight_long'
-    available_gpus = [0, 1, 2]
-    random_seeds = [0]
+    procs_per_gpu = 1
+    experiment_name = 'baseline'
+    available_gpus = [0, 1]
+    random_seeds = [30]
     folds = [1, 0, 2, 3,4, 5]
     args = {
         'control_weight': 1.0,

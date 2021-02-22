@@ -49,7 +49,7 @@ class ClassificationTrainer:
         for epoch in range(self.epochs):
             self.curr_epoch = epoch
             print(f'\nEpoch {epoch}/{self.epochs} -- lr = {self.lr}')
-            train_loss, train_acc = self.run_one_epoch(training=True, rounds=10)
+            train_loss, train_acc = self.run_one_epoch(training=True, rounds=1)
             val_inference_results = self.get_inference_results(self.val_loader)
             val_acc = self.get_acc(val_inference_results)
             val_auc = self.get_auc(val_inference_results)
@@ -80,7 +80,12 @@ class ClassificationTrainer:
             if epochs_since_best == 0:
                 msg += '[*]'
 
+            for param_group in self.optimizer.param_groups:
+                curr_lr = param_group['lr']
+                break
+            metrics['curr_lr'] = curr_lr
             print(msg)
+
             wandb.log(metrics, step=epoch)
             if self.schedule_type == 'plateau':
                 self.scheduler.step(val_auc)
@@ -121,8 +126,10 @@ class ClassificationTrainer:
         simple_loss = torch.nn.CrossEntropyLoss()
         if testing:
             accum_amnt = 1
+            max_size = 1
         else:
-            accum_amnt = 8
+            accum_amnt = 4
+            max_size = 2
         accum_counter = 0
         curr_shape = None
         batch_data = []
@@ -140,7 +147,7 @@ class ClassificationTrainer:
                     x_batched = []
                     y_batched = []
                     for x, y in batch_data:
-                        if x.shape != curr_shape:
+                        if x.shape != curr_shape or len(x_batched) == 0 or len(x_batched[-1]) >= max_size:
                             curr_shape = x.shape
                             x_batched.append([])
                             y_batched.append([])
@@ -171,6 +178,8 @@ class ClassificationTrainer:
                             total_acc += float(torch.sum(preds == y.data).float().detach())
                     if training:
                         self.optimizer.step()
+                        if self.schedule_type == 'cyclic':
+                            self.scheduler.step()
                     batch_data = []
                     acc = total_acc / accum_amnt
 
