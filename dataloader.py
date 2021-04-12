@@ -77,6 +77,9 @@ class BagDataset(torch.utils.data.Dataset):
         if self.cache_images:
             self.image_cache = ImageCache(cell_mask=cell_mask)
 
+    def worker_init_fn(worker_id):
+        np.random.seed(torch.initial_seed())
+
     def __len__(self):
         return len(self.bags)
 
@@ -365,9 +368,6 @@ def load_all_patients(train_transforms=None, test_transforms=None, group_by_pati
                                                                                                   fold_index=fold_number,
                                                                                                   fold_seed=fold_seed,
                                                                                                   fold_count=fold_count)
-    print('TRAIN', '10051879530' in train_orders)
-    print("VAL", '10051879530' in val_orders)
-    print("TEST", '10051879530' in test_orders)
     if exclusion is not None:
         with open(exclusion) as fp:
             # set to go fast
@@ -376,6 +376,13 @@ def load_all_patients(train_transforms=None, test_transforms=None, group_by_pati
         # empty set as default
         exclusion_set = set()
     if group_by_patient:
+        if include_control:
+            control_data = get_control_sample()
+            all_image_paths.update(control_data)
+            control_orders = list(control_data.keys())
+            control_labels = [0] * len(control_orders)
+            train_orders = train_orders.tolist() + control_orders
+            train_labels = train_labels.tolist() + control_labels
         train_bags = load_orders_into_bags(train_orders, all_image_paths, train_labels, exclusion=exclusion_set)
         val_bags = load_orders_into_bags(val_orders, all_image_paths, val_labels, exclusion=exclusion_set)
         test_bags = load_orders_into_bags(test_orders, all_image_paths, test_labels, exclusion=exclusion_set)
@@ -439,7 +446,7 @@ def load_all_patients(train_transforms=None, test_transforms=None, group_by_pati
     return train_loader, val_loader, test_loader
 
 
-def load_control(transforms, batch_size=8, extract_filenames=False):
+def load_control(transforms, batch_size=8, extract_filenames=False, group_by_patient=False, mil_size=16):
     if os.path.exists(('/hddraid5')):
         control_dir = "/hddraid5/data/colin/covid-data/control_data/negative/COVID Imaging Negative Controls"
     else:
@@ -459,10 +466,15 @@ def load_control(transforms, batch_size=8, extract_filenames=False):
     negative_orders = list(negative_image_paths.keys())
     orders = negative_orders
     labels = [0] * len(negative_orders)
-    control_labels, control_orders, control_files = load_orders(orders, all_image_paths, labels)
-    control_dataset = SingleCellDataset(control_files, control_labels, data_transforms=transforms,
-                                        metadata={
-                                            'orders': control_orders,
-                                        }, extract_filenames=extract_filenames)
-    control_loader = DataLoader(control_dataset, batch_size=batch_size, shuffle=False, pin_memory=True)
+    print(negative_orders)
+    if group_by_patient:
+        control_bags = load_orders_into_bags(orders, all_image_paths, labels)
+        control_dataset = BagDataset(control_bags, data_transforms=transforms, mil_size=mil_size)
+    else:
+        control_labels, control_orders, control_files = load_orders(orders, all_image_paths, labels)
+        control_dataset = SingleCellDataset(control_files, control_labels, data_transforms=transforms,
+                                            metadata={
+                                                'orders': control_orders,
+                                            }, extract_filenames=extract_filenames)
+    control_loader = DataLoader(control_dataset, batch_size=batch_size, shuffle=False, pin_memory=False)
     return control_loader

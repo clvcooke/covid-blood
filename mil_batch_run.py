@@ -14,18 +14,19 @@ def make_config(args):
 
 if __name__ == "__main__":
     procs_per_gpu = 1
-    experiment_name = 'mil_batch'
-    available_gpus = [3]
-    random_seeds = [100, 200, 300]
-    folds = [1, 0, 2, 3, 4, 5]
+    experiment_name = 'mil_batch_rev9_zoom_seed'
+    available_gpus = [0, 1,2, 3, 4]
+    random_seeds = [0, 1, 2]
+    folds = [0, 1, 2, 3, 5]
     args = {
-        'control_weight': 1.0,
-        'epochs': 350,
-        'init_lr': 3e-5,
-        'lr_schedule': 'standard',
-        'batch_size': 1,
-        'mil_size': 32,
-        'model_name': 'resnet50'
+        'control_weight': 0.0,
+        'epochs': 2000,
+        'init_lr': 1e-5,
+        'lr_schedule': None,
+        'mil_size': 10,
+        'model_name': 'resnet50',
+        'optimizer': 'adamw',
+        'zoom': 0.05
     }
     all_iteration_args = []
     for random_seed in random_seeds:
@@ -49,10 +50,12 @@ if __name__ == "__main__":
                 del all_iteration_args[0]
                 proc_args['gpu_number'] = gpu_number
                 current_load[gpu_index] += 1
+                print(proc_args)
                 p = Process(target=mil_main, args=[make_config(proc_args)])
                 p.start()
                 # store the process handle the gpu used to run it
                 current_processes.append((p, gpu_index))
+                time.sleep(10)
                 break
         # if nothing is started check if any of the processes are done
         if not started_proc:

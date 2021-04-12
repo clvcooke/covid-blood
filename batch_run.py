@@ -21,13 +21,14 @@ if __name__ == "__main__":
     args = {
         'control_weight': 1.0,
         'epochs': 800,
+        'batch_size': 16,
         'lr_schedule': 'cyclic'
     }
     all_iteration_args = []
     for random_seed in random_seeds:
         for fold in folds:
             run_args = args.copy()
-            run_args['fold'] = fold
+            run_args['fold_number'] = fold
             run_args['random_seed'] = random_seed
             run_args['experiment_name'] = experiment_name
             all_iteration_args.append(run_args)

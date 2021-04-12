@@ -128,8 +128,8 @@ class ClassificationTrainer:
             accum_amnt = 1
             max_size = 1
         else:
-            accum_amnt = 4
-            max_size = 2
+            accum_amnt = 8
+            max_size = 4
         accum_counter = 0
         curr_shape = None
         batch_data = []

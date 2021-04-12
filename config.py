@@ -59,6 +59,7 @@ def get_parser():
                            help='which architecture to use')
     train_arg.add_argument('--pretrained_model', type=str2bool, default=False,
                            help='pretraining True or False')
+    train_arg.add_argument('--optimizer', type=str, default='adamw')
 
     misc_arg = parser.add_argument_group('Misc.')
     misc_arg.add_argument('--use_gpu', type=str2bool, default=True,

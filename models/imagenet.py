@@ -28,6 +28,11 @@ def get_model(model_name, num_outputs, use_pretrained=False):
         set_parameter_requires_grad(model_ft, use_pretrained)
         num_ftrs = model_ft.fc.in_features
         model_ft.fc = nn.Linear(num_ftrs, num_outputs)
+    elif model_name == 'wideresnet50':
+        model_ft = models.wide_resnet50_2(pretrained=use_pretrained)
+        set_parameter_requires_grad(model_ft, use_pretrained)
+        num_ftrs = model_ft.fc.in_features
+        model_ft.fc = nn.Linear(num_ftrs, num_outputs)
     elif model_name == "alexnet":
         """ Alexnet
         """
