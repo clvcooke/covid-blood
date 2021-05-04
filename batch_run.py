@@ -14,15 +14,16 @@ def make_config(args):
 
 if __name__ == "__main__":
     procs_per_gpu = 1
-    experiment_name = 'baseline'
-    available_gpus = [0, 1]
-    random_seeds = [30]
-    folds = [1, 0, 2, 3,4, 5]
+    experiment_name = 'ablation_inner_180'
+    available_gpus = [0, 1, 3,4]
+    random_seeds = [1, 2]
+    folds = [0, 3]
     args = {
         'control_weight': 1.0,
-        'epochs': 800,
-        'batch_size': 16,
-        'lr_schedule': 'cyclic'
+        'epochs': 200,
+        'batch_size': 48,
+        'lr_schedule': 'cyclic',
+        'center_mask': 180
     }
     all_iteration_args = []
     for random_seed in random_seeds:

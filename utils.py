@@ -195,11 +195,10 @@ class BlankImage(object):
 
 def get_covid_transforms(image_size=224, center_crop_amount=224, center_mask=0, resize=0, zoom=0, outer_mask=0,
                          nucseg=False, shear=0, speckle=0, hue=0, saturation=0):
-    resizing = [
-        transforms.Resize(image_size)
-    ]
     if resize != 0:
-        resizing.insert(0, transforms.Resize(resize))
+        resizing= [transforms.Resize(resize), transforms.Resize(image_size)]
+    else:
+        resizing = []
 
     zooming = []
     if zoom != 0:
@@ -231,8 +230,8 @@ def get_covid_transforms(image_size=224, center_crop_amount=224, center_mask=0, 
             *zooming,
             #*shearing,
             transforms.CenterCrop(center_crop_amount),
-            #*masking,
-            #*resizing,
+            *masking,
+            *resizing,
             transforms.ToTensor(),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
         ]),
@@ -241,8 +240,8 @@ def get_covid_transforms(image_size=224, center_crop_amount=224, center_mask=0, 
             #*zooming,
             #*shearing,
             transforms.CenterCrop(center_crop_amount),
-            #*masking,
-            #*resizing,
+            *masking,
+            *resizing,
             transforms.ToTensor(),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ]),
